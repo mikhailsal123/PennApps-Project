@@ -2,6 +2,8 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import pandas as pd
 
+'''Code for the data struture storing stock time series and analysis functions'''
+
 class StockData:
     period_limit = 60 # 60 days for minute intervals 
     interval_set = set(["1m", "2m", "5m", "15m", "30m", "60m"])
