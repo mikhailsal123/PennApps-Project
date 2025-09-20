@@ -45,6 +45,8 @@ class StockData:
             self.stock_error_message(stock_symbol, start_date)
         else:
             self.stock_data.index = self.stock_data.index.tz_localize(None)
+            self.curtime = self.stock_data.index[0]
+        
 
     # get stock data (per day basis)
     def get_stock_data_for_date(self, stock_symbol, date):
@@ -90,18 +92,80 @@ class StockData:
         else:
             self.stock_data.index = self.stock_data.index.tz_localize(None)
     
-    def get_price(self, time):
+    def get_price(self):
+        time = self.curtime
         if time in self.stock_data.index:
             mid_price = (float(self.stock_data.loc[time, "High"]) + float(self.stock_data.loc[time, "Low"]))/2
             return mid_price
         else:
             print("Market is not open at this time")
+    
+    def moving_average(self, window='1h'):
+        self.stock_data["SMA"] = self.stock_data['Close'].rolling(window=window).mean()
+        return self.stock_data.loc[self.curtime, "SMA"]
+
+    def price_increase(self):
+        current_time = self.curtime
+        start_time = self.stock_data.index[0]
+        # Get the start price
+        if start_time in self.stock_data.index:
+            start_price = self.stock_data.loc[start_time, 'Close']
+        else:
+            # Find the closest available time to start_time
+            available_times = self.stock_data.index
+            if len(available_times) == 0:
+                print("No data available for start time")
+                return None
+            
+            # Find the closest time after or equal to start_time
+            valid_times = available_times[available_times >= start_time]
+            if len(valid_times) == 0:
+                print(f"No data available after start time {start_time}")
+                return None
+            
+            closest_start_time = valid_times[0]
+            start_price = self.stock_data.loc[closest_start_time, 'Close']
+        
+        # Get the current price
+        if current_time is None:
+            # Use the latest available time
+            current_price = self.stock_data['Close'].iloc[-1]
+            current_time = self.stock_data.index[-1]
+        else:
+            if current_time in self.stock_data.index:
+                current_price = self.stock_data.loc[current_time, 'Close']
+            else:
+                # Find the closest available time to current_time
+                available_times = self.stock_data.index
+                valid_times = available_times[available_times <= current_time]
+                if len(valid_times) == 0:
+                    print(f"No data available before current time {current_time}")
+                    return None
+                
+                closest_current_time = valid_times[-1]
+                current_price = self.stock_data.loc[closest_current_time, 'Close']
+                current_time = closest_current_time
+        
+        # Calculate percentage change
+        if start_price == 0:
+            print("Start price is zero, cannot calculate percentage change")
+            return None
+        
+        change_pct = (current_price - start_price) / start_price * 100
+        
+        return change_pct
+
 
 def main():
-    df = StockData("AAPL", "60d", "2m")
-    print(df.stock_data)
-    print(df.ticker)
-    print(df.get_price(datetime(2025, 8, 9, 9, 30)))
+    # Test with date range data
+    df = StockData("AAPL", "2025-08-08", "2025-09-08")
+    print(f"Stock: {df.ticker}")
+    print(f"Data range: {df.stock_data.index[0]} to {df.stock_data.index[-1]}")
+    # Test price increase with specific times
+    df.curtime = datetime(2025, 8, 20)
+    change = df.price_increase()
+    print(change)
+    print(df.moving_average())
 
 if __name__ == "__main__":
     main()
