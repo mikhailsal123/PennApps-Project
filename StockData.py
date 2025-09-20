@@ -8,7 +8,7 @@ class StockData:
     period_limit = 60 # 60 days for minute intervals 
     interval_set = set(["1m", "2m", "5m", "15m", "30m", "60m"])
 
-    def __init__(self, stock_symbol, var1, var2 = None):
+    def __init__(self, stock_symbol, var1, var2 = None): # var1 and var2 define which 
         self.ticker = stock_symbol
         if var2 is None:
             self.get_stock_data_for_date(stock_symbol, var1)
@@ -94,12 +94,14 @@ class StockData:
         if time in self.stock_data.index:
             mid_price = (float(self.stock_data.loc[time, "High"]) + float(self.stock_data.loc[time, "Low"]))/2
             return mid_price
+        else:
+            print("Market is not open at this time")
 
 def main():
     df = StockData("AAPL", "60d", "2m")
     print(df.stock_data)
     print(df.ticker)
-    print(df.get_price(datetime(2025, 8, 8, 9, 30)))
+    print(df.get_price(datetime(2025, 8, 9, 9, 30)))
 
 if __name__ == "__main__":
     main()
