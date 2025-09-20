@@ -3,13 +3,13 @@ from StockData import StockData
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import numpy as np
 
 class Portfolio:
     def __init__(self, cash, var1, var2 = None, positions = None, past_trades = None): 
         self.cash = cash     # Starting cash
         self.var1 = var1 
         self.var2 = var2
-
 
         if positions is not None:
             self.positions = positions
@@ -58,14 +58,15 @@ class Portfolio:
             return value - self.original_value
 
     def summary(self, timestamp):
-        print("CASH:", self.cash)
+        print(f"CASH: ${self.cash}")
         print("POSITIONS:")
         for ticker, shares in self.positions.items():
             sd = StockData(ticker, self.var1, self.var2)
             market_price = sd.get_price(timestamp)
             print(f"  {ticker}: {shares} shares @ ${market_price}")
-        print("TOTAL VALUE:", self.get_value(timestamp))
-    
+        print(f"P&L: ${self.get_PNL(timestamp):,.2f}")
+        print(f"Current Value: ${self.get_value(timestamp):,.2f}")
+
     def buy(self, ticker, price, shares, timestamp):
 
         sd = StockData(ticker, self.var1, self.var2)
@@ -261,6 +262,179 @@ class Portfolio:
         
         plt.show()
 
+    def calculate_sharpe_ratio(self, risk_free_rate=0.02, period='daily'):
+        """
+        Calculate the Sharpe ratio for the portfolio.
+        
+        The Sharpe ratio measures risk-adjusted returns by comparing the excess return
+        of the portfolio to its volatility (standard deviation).
+        
+        Args:
+            risk_free_rate (float): Annual risk-free rate (default 2% = 0.02)
+            period (str): Period of returns ('daily', 'weekly', 'monthly', 'annual')
+        
+        Returns:
+            float: Sharpe ratio, or None if insufficient data
+        """
+        if len(self.change_over_time) < 2:
+            print("Insufficient data for Sharpe ratio calculation. Need at least 2 data points.")
+            return None
+        
+        # Get sorted values and calculate returns
+        timestamps = sorted(self.change_over_time.keys())
+        values = [self.change_over_time[ts] for ts in timestamps]
+        
+        # Calculate percentage returns
+        returns = []
+        for i in range(1, len(values)):
+            if values[i-1] != 0:  # Avoid division by zero
+                daily_return = (values[i] - values[i-1]) / values[i-1]
+                returns.append(daily_return)
+        
+        if len(returns) < 2:
+            print("Insufficient return data for Sharpe ratio calculation.")
+            return None
+        
+        # Convert to numpy array for easier calculations
+        returns = np.array(returns)
+        
+        # Calculate annualized metrics based on period
+        if period == 'daily':
+            periods_per_year = 252  # Trading days per year
+        elif period == 'weekly':
+            periods_per_year = 52
+        elif period == 'monthly':
+            periods_per_year = 12
+        elif period == 'annual':
+            periods_per_year = 1
+        else:
+            print(f"Invalid period '{period}'. Using 'daily'.")
+            periods_per_year = 252
+        
+        # Annualize the risk-free rate
+        daily_risk_free_rate = risk_free_rate / periods_per_year
+        
+        # Calculate excess returns
+        excess_returns = returns - daily_risk_free_rate
+        
+        # Calculate Sharpe ratio
+        if np.std(returns) == 0:
+            print("Portfolio has zero volatility. Sharpe ratio is undefined.")
+            return None
+        
+        # Annualized Sharpe ratio
+        sharpe_ratio = (np.mean(excess_returns) * periods_per_year) / (np.std(returns) * np.sqrt(periods_per_year))
+        
+        return sharpe_ratio
+    
+    def calculate_volatility(self, period='daily'):
+        """
+        Calculate the volatility (standard deviation) of portfolio returns.
+        
+        Args:
+            period (str): Period of returns ('daily', 'weekly', 'monthly', 'annual')
+        
+        Returns:
+            float: Volatility, or None if insufficient data
+        """
+        if len(self.change_over_time) < 2:
+            print("Insufficient data for volatility calculation. Need at least 2 data points.")
+            return None
+        
+        # Get sorted values and calculate returns
+        timestamps = sorted(self.change_over_time.keys())
+        values = [self.change_over_time[ts] for ts in timestamps]
+        
+        # Calculate percentage returns
+        returns = []
+        for i in range(1, len(values)):
+            if values[i-1] != 0:  # Avoid division by zero
+                daily_return = (values[i] - values[i-1]) / values[i-1]
+                returns.append(daily_return)
+        
+        if len(returns) < 2:
+            print("Insufficient return data for volatility calculation.")
+            return None
+        
+        # Convert to numpy array
+        returns = np.array(returns)
+        
+        # Calculate annualized volatility based on period
+        if period == 'daily':
+            periods_per_year = 252  # Trading days per year
+        elif period == 'weekly':
+            periods_per_year = 52
+        elif period == 'monthly':
+            periods_per_year = 12
+        elif period == 'annual':
+            periods_per_year = 1
+        else:
+            print(f"Invalid period '{period}'. Using 'daily'.")
+            periods_per_year = 252
+        
+        # Annualized volatility
+        volatility = np.std(returns) * np.sqrt(periods_per_year)
+        
+        return volatility
+    
+    def calculate_returns_summary(self, risk_free_rate=0.02):
+        """Calculate a comprehensive summary of portfolio returns and risk metrics.
+        
+        Args:
+            risk_free_rate (float): Annual risk-free rate (default 2% = 0.02)
+        
+        Returns:
+            dict: Dictionary containing various return and risk metrics"""
+            
+        if len(self.change_over_time) < 2:
+            print("Insufficient data for returns summary. Need at least 2 data points.")
+            return None
+        
+        # Get sorted values and calculate returns
+        timestamps = sorted(self.change_over_time.keys())
+        values = [self.change_over_time[ts] for ts in timestamps]
+        
+        # Calculate percentage returns
+        returns = []
+        for i in range(1, len(values)):
+            if values[i-1] != 0:  # Avoid division by zero
+                daily_return = (values[i] - values[i-1]) / values[i-1]
+                returns.append(daily_return)
+        
+        if len(returns) < 2:
+            print("Insufficient return data for summary calculation.")
+            return None
+        
+        returns = np.array(returns)
+        
+        # Calculate metrics
+        total_return = (values[-1] - values[0]) / values[0] * 100
+        annualized_return = (1 + total_return/100) ** (252/len(returns)) - 1
+        volatility = np.std(returns) * np.sqrt(252) * 100
+        sharpe_ratio = self.calculate_sharpe_ratio(risk_free_rate)
+        
+        # Calculate maximum drawdown
+        peak = values[0]
+        max_drawdown = 0
+        for value in values:
+            if value > peak:
+                peak = value
+            drawdown = (peak - value) / peak * 100
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
+        
+        summary = {
+            'total_return_pct': round(total_return, 2),
+            'annualized_return_pct': round(annualized_return * 100, 2),
+            'volatility_pct': round(volatility, 2),
+            'sharpe_ratio': round(sharpe_ratio, 3) if sharpe_ratio else None,
+            'max_drawdown_pct': round(max_drawdown, 2),
+            'data_points': len(values),
+            'time_period_days': (timestamps[-1] - timestamps[0]).days
+        }
+        
+        return summary
+
 def main():
     A = Portfolio(100000, "60d", "2m")
     
@@ -283,13 +457,34 @@ def main():
     A.get_value(datetime(2025, 8, 17, 9, 30))
     A.get_value(datetime(2025, 8, 18, 9, 30))
     A.get_value(datetime(2025, 8, 19, 9, 30))
-    A.get_value(datetime(2025, 8, 20, 9, 30))
+    A.get_value(datetime(2025, 9, 1, 9, 30))
+    A.get_value(datetime(2025, 9, 2, 9, 30))
+    A.get_value(datetime(2025, 9, 3, 9, 30))
+    A.get_value(datetime(2025, 9, 8, 9, 30))
     
-    print("\nPortfolio Summary:")
-    print(A.positions)
-    print(A.past_trades)
-    print(f"P&L: ${A.get_PNL(datetime(2025, 8, 11, 9, 30)):,.2f}")
-    print(f"Current Value: ${A.get_value(datetime(2025, 8, 11, 9, 30)):,.2f}")
+    A.summary(datetime(2025, 9, 8, 9, 30))
+    
+    # Calculate risk metrics
+    print("\n=== Risk Metrics ===")
+    sharpe_ratio = A.calculate_sharpe_ratio()
+    volatility = A.calculate_volatility()
+    
+    if sharpe_ratio is not None:
+        print(f"Sharpe Ratio: {sharpe_ratio:.3f}")
+    if volatility is not None:
+        print(f"Annualized Volatility: {volatility*100:.2f}%")
+    
+    # Get comprehensive returns summary
+    summary = A.calculate_returns_summary()
+    if summary:
+        print(f"\n=== Returns Summary ===")
+        print(f"Total Return: {summary['total_return_pct']}%")
+        print(f"Annualized Return: {summary['annualized_return_pct']}%")
+        print(f"Volatility: {summary['volatility_pct']}%")
+        print(f"Sharpe Ratio: {summary['sharpe_ratio']}")
+        print(f"Max Drawdown: {summary['max_drawdown_pct']}%")
+        print(f"Data Points: {summary['data_points']}")
+        print(f"Time Period: {summary['time_period_days']} days")
     
     # Plot the portfolio value over time
     print("\nGenerating plots...")
