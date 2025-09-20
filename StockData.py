@@ -43,6 +43,8 @@ class StockData:
         
         if self.stock_data.empty:
             self.stock_error_message(stock_symbol, start_date)
+        else:
+            self.stock_data.index = self.stock_data.index.tz_localize(None)
 
     # get stock data (per day basis)
     def get_stock_data_for_date(self, stock_symbol, date):
@@ -60,6 +62,8 @@ class StockData:
         
         if self.stock_data.empty:
             self.stock_error_message(stock_symbol, date)
+        else:
+            self.stock_data.index = self.stock_data.index.tz_localize(None)
 
     # retrive stock data for minute time intervals 
     def get_stock_data_for_time_interval(self, stock_symbol, period, interval):
@@ -83,12 +87,19 @@ class StockData:
         
         if self.stock_data.empty:
             self.stock_error_message(stock_symbol, period)
-
+        else:
+            self.stock_data.index = self.stock_data.index.tz_localize(None)
+    
+    def get_price(self, time):
+        if time in self.stock_data.index:
+            mid_price = (float(self.stock_data.loc[time, "High"]) + float(self.stock_data.loc[time, "Low"]))/2
+            return mid_price
 
 def main():
     df = StockData("AAPL", "60d", "2m")
     print(df.stock_data)
     print(df.ticker)
+    print(df.get_price(datetime(2025, 8, 8, 9, 30)))
 
 if __name__ == "__main__":
     main()
