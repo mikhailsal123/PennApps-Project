@@ -69,33 +69,55 @@ def update_portfolio_state(simulation_id, simulation_data):
         print(f"   Final positions: {current_portfolio_state['final_positions']}")
         print(f"   Final value: ${current_portfolio_state['final_metrics'].get('final_value', 'N/A')}")
         print(f"   Total return: {current_portfolio_state['final_metrics'].get('total_return_pct', 'N/A')}%")
+        
+        # Clear conversation history when new simulation starts
+        if 'ai_advisor' in globals():
+            ai_advisor.clear_conversation_history()
+            print("🧠 Conversation history cleared for new simulation")
 
 class AIAdvisor:
     def __init__(self):
-        self.system_prompt = """You are a friendly and knowledgeable AI portfolio advisor with dynamic knowledge of your user's current portfolio state. You can have casual conversations and also provide expert financial analysis.
+        self.conversation_history = []  # Store conversation memory
+        self.system_prompt = """You are a friendly and knowledgeable AI portfolio advisor and trading expert. You can provide both general trading/investment advice and analyze specific portfolio data.
 
 Your capabilities include:
 - Having friendly, natural conversations
-- Knowing the user's CURRENT portfolio state at all times
-- Analyzing portfolio performance, risk metrics, and allocation
+- Providing general trading and investment advice
+- Explaining market concepts, strategies, and financial instruments
+- Analyzing specific portfolio performance, risk metrics, and allocation
 - Identifying strengths and weaknesses in trading strategies
 - Suggesting improvements for diversification and risk management
 - Providing market insights and investment recommendations
 - Explaining financial concepts in simple terms
+- Discussing different asset classes, sectors, and investment approaches
 
 Always be:
 - Friendly and approachable in conversation
 - Professional and informative when discussing finance
-- Data-driven in your analysis using the user's ACTUAL portfolio data
-- Cautious about market predictions
+- Data-driven when analyzing specific portfolios
+- Cautious about market predictions and specific stock recommendations
 - Focused on helping users make informed decisions
 - Clear about risks and limitations
-- ACCURATE about the user's current portfolio holdings and performance
+- Educational and helpful for both beginners and experienced traders
+- CONCISE and focused on the specific question asked
+- MEMORY-AWARE of previous questions in the conversation
 
-IMPORTANT: You have access to the user's current portfolio state. Always reference their ACTUAL holdings, performance, and metrics when discussing their portfolio. If asked about their portfolio, provide specific details about their current positions, returns, and risk metrics.
+IMPORTANT: 
+- You can answer general trading questions without needing specific portfolio data
+- When portfolio data is available, reference their ACTUAL holdings and performance
+- Stay focused on the specific question asked - don't give generic long responses unless specifically requested
+- Remember previous questions in the conversation and build upon them
+- If asked a specific question, answer it directly and concisely
+- Provide educational content and explain the reasoning behind your advice
 
 For casual conversation, respond naturally and warmly.
-For financial analysis, format responses with clear headings, bullet points, and specific recommendations based on their actual portfolio data."""
+For general trading advice, provide educational and practical guidance.
+For portfolio analysis, format responses with clear headings, bullet points, and specific recommendations."""
+    
+    def clear_conversation_history(self):
+        """Clear the conversation history"""
+        self.conversation_history = []
+        print("🧠 Conversation history cleared")
 
     def analyze_portfolio(self, portfolio_data=None, user_question="", simulation_data=None):
         """Analyze portfolio data and provide AI-powered insights with dynamic portfolio memory"""
@@ -113,6 +135,16 @@ Example: export CEREBRAS_TOKEN='your-cerebras-token-here'
 
 In the meantime, you can still analyze your portfolio manually using the performance metrics and charts provided."""
             
+            # Add current question to conversation history
+            self.conversation_history.append({
+                'question': user_question,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            # Keep only last 10 questions to avoid context overflow
+            if len(self.conversation_history) > 10:
+                self.conversation_history = self.conversation_history[-10:]
+            
             # Use global portfolio state if no specific data provided
             if portfolio_data is None:
                 portfolio_data = {
@@ -128,53 +160,80 @@ In the meantime, you can still analyze your portfolio manually using the perform
                     'trading_rules': current_portfolio_state['trading_rules']
                 }
             
+            # Prepare conversation context
+            conversation_context = ""
+            if len(self.conversation_history) > 1:
+                conversation_context = "\n\nCONVERSATION HISTORY:\n"
+                for i, conv in enumerate(self.conversation_history[:-1], 1):
+                    conversation_context += f"{i}. User: {conv['question']}\n"
+                conversation_context += f"\nCurrent question: {user_question}"
+            
             # Check if it's a general conversation or portfolio-specific question
             question_lower = user_question.lower().strip()
             
-            # Handle portfolio state queries
+            # Handle specific questions with focused responses
             if any(query in question_lower for query in ['what is my portfolio', 'my portfolio', 'current portfolio', 'show my portfolio', 'portfolio holdings', 'what do i own', 'my positions']):
                 context = self._prepare_portfolio_context(portfolio_data, simulation_data)
                 user_message = f"""User is asking about their current portfolio. Here is their ACTUAL portfolio state:
 
 {context}
 
-User Question: "{user_question}"
+{conversation_context}
 
-Please provide a comprehensive overview of their current portfolio including:
+Please provide a focused overview of their current portfolio including:
 1. Current holdings and positions
 2. Portfolio value and performance
-3. Risk metrics and analysis
-4. Recent trading activity
-5. Overall assessment and recommendations
+3. Key risk metrics
 
-Be specific about their actual holdings, values, and performance metrics."""
+Be specific about their actual holdings, values, and performance metrics. Keep it concise and focused on what they asked."""
             
-            # Handle general greetings and non-portfolio questions
-            elif any(greeting in question_lower for greeting in ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening']):
-                user_message = f"""User said: "{user_question}"
-
-Please respond naturally and friendly to this greeting. You can mention that you're a portfolio advisor ready to help with investment questions. If they have a portfolio simulation, you can mention that you're aware of their current holdings and ready to help analyze it."""
-            
-            elif any(general in question_lower for general in ['how are you', 'what can you do', 'help', 'what do you do']):
-                user_message = f"""User asked: "{user_question}"
-
-Please explain that you're an AI portfolio advisor who can help analyze investment portfolios, provide financial advice, and answer questions about trading strategies, risk management, and portfolio optimization. You have access to their current portfolio state and can provide specific insights about their holdings and performance."""
-            
-            else:
-                # Portfolio analysis questions
+            # Handle specific investment questions
+            elif any(query in question_lower for query in ['should i buy', 'should i sell', 'hedge', 'voo', 'vti', 'better', 'which one', 'recommend', 'advice']):
                 context = self._prepare_portfolio_context(portfolio_data, simulation_data)
-                user_message = f"""Please analyze this portfolio data and provide insights:
+                user_message = f"""User is asking for specific investment advice. Here is their current portfolio state:
 
 {context}
 
-User Question: {user_question if user_question else "Please provide a comprehensive analysis of this portfolio and any recommendations for improvement."}
+{conversation_context}
 
-Please provide a detailed analysis covering:
-1. Overall performance assessment
-2. Risk analysis
-3. Portfolio diversification
-4. Trading strategy evaluation
-5. Specific recommendations for improvement"""
+Please provide focused, specific advice based on their current portfolio. Answer their question directly and concisely. If they're asking about specific investments, provide clear recommendations based on their current holdings and risk profile."""
+            
+            # Handle general greetings
+            elif any(greeting in question_lower for greeting in ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening']):
+                user_message = f"""User said: "{user_question}"
+
+{conversation_context}
+
+Please respond naturally and friendly to this greeting. Keep it brief and mention that you're ready to help with their portfolio questions."""
+            
+            # Handle general trading and investment questions
+            elif any(query in question_lower for query in ['what is', 'how does', 'explain', 'tell me about', 'difference between', 'compare', 'vs', 'versus', 'trading strategy', 'investment strategy', 'market', 'stocks', 'bonds', 'etf', 'mutual fund', 'options', 'futures', 'crypto', 'bitcoin', 'dollar cost averaging', 'value investing', 'growth investing', 'technical analysis', 'fundamental analysis', 'risk management', 'diversification', 'asset allocation', 'rebalancing', 'tax', 'retirement', '401k', 'ira', 'roth', 'dividend', 'yield', 'pe ratio', 'p/e', 'market cap', 'volatility', 'beta', 'alpha', 'sharpe ratio', 'correlation', 'sector', 'industry', 'bull market', 'bear market', 'recession', 'inflation', 'interest rates', 'fed', 'federal reserve', 'earnings', 'revenue', 'profit', 'balance sheet', 'income statement', 'cash flow', 'debt', 'equity', 'leverage', 'margin', 'short selling', 'hedging', 'derivatives', 'commodities', 'real estate', 'reits', 'treasury', 'corporate bonds', 'junk bonds', 'credit rating', 'default', 'liquidity', 'volume', 'institutional', 'retail', 'hedge fund', 'private equity', 'venture capital', 'ipo', 'merger', 'acquisition', 'dividend yield', 'roe', 'roa', 'wacc', 'dcf', 'npv', 'irr', 'black scholes', 'greeks', 'delta', 'gamma', 'theta', 'vega', 'implied volatility', 'vix', 'sentiment', 'momentum', 'mean reversion', 'trend following', 'contrarian', 'arbitrage', 'algorithmic', 'quantitative', 'active', 'passive', 'index fund', 'expense ratio', 'management fee', 'drip', 'dividend reinvestment', 'compounding', 'compound interest', 'rule of 72', 'time value', 'present value', 'future value', 'bond pricing', 'yield to maturity', 'current yield', 'coupon', 'face value', 'par value', 'discount', 'premium', 'zero coupon', 'callable', 'putable', 'convertible', 'investment grade', 'moody', 's&p', 'fitch', 'rating', 'bankruptcy', 'reorganization', 'liquidation', 'collateral', 'secured', 'unsecured', 'senior', 'subordinated', 'preferred', 'common', 'voting', 'proxy', 'activist', 'institutional', 'retail', 'individual', 'accredited', 'high net worth', 'family office', 'endowment', 'foundation', 'pension', 'defined benefit', 'defined contribution', 'rollover', 'conversion', 'backdoor', 'mega backdoor', 'contribution limit', 'income limit', 'required minimum distribution', 'rmd', 'early withdrawal', 'penalty', 'hardship', 'loan', 'borrowing', 'day trading', 'pattern day trader', 'pdt', 'good faith', 'freeriding', 'settlement', 'clearing', 'custody', 'sipc', 'fdic', 'insurance', 'protection', 'fraud', 'scam', 'ponzi', 'pyramid', 'elder abuse', 'financial exploitation', 'estate planning', 'will', 'trust', 'revocable', 'irrevocable', 'living trust', 'gift tax', 'estate tax', 'generation skipping', 'gst', 'exemption', 'unified', 'portability', 'step up', 'basis', 'cost basis', 'wash sale', 'constructive sale', 'straddle', 'conversion', 'synthetic', 'collar', 'protective put', 'covered call', 'cash secured', 'naked', 'uncovered', 'spread', 'bull', 'bear', 'calendar', 'diagonal', 'butterfly', 'condor', 'iron', 'strangle', 'straddle', 'long', 'short', 'strike', 'expiration', 'exercise', 'assignment', 'american', 'european', 'barrier', 'knock in', 'knock out', 'binary', 'digital', 'touch', 'no touch', 'lookback', 'basket', 'rainbow', 'quanto', 'best of', 'worst of', 'outperformance', 'underperformance', 'volatility', 'variance', 'correlation', 'dispersion', 'basket', 'index', 'sector', 'single name', 'credit', 'equity', 'interest rate', 'fx', 'commodity', 'energy', 'metals', 'agriculture', 'precious', 'industrial', 'base', 'rare earth', 'supply chain', 'logistics', 'transportation', 'shipping', 'airline', 'railroad', 'trucking', 'pipeline', 'storage', 'tankers', 'dry bulk', 'container', 'ports', 'terminals', 'warehouses', 'distribution', 'fulfillment', 'ecommerce', 'online', 'digital', 'platform', 'marketplace', 'gig', 'sharing', 'subscription', 'saas', 'paas', 'iaas', 'cloud', 'edge', '5g', 'iot', 'ai', 'ml', 'blockchain', 'crypto', 'defi', 'nft', 'metaverse', 'vr', 'ar', 'mr', 'xr', 'quantum', 'biotech', 'pharma', 'healthcare', 'medical', 'device', 'diagnostic', 'therapeutic', 'drug', 'medicine', 'treatment', 'cure', 'vaccine', 'immunotherapy', 'gene therapy', 'cell therapy', 'stem cell', 'regenerative', 'precision', 'personalized', 'companion', 'biomarker', 'genomics', 'proteomics', 'metabolomics', 'transcriptomics', 'epigenomics', 'single cell', 'spatial', 'multi omics', 'systems biology', 'synthetic biology', 'bioengineering', 'biofabrication', 'organoid', 'organ on chip', 'microfluidics', 'lab on chip', 'point of care', 'telemedicine', 'digital health', 'health tech', 'medtech', 'fintech', 'insurtech', 'proptech', 'edtech', 'cleantech', 'greentech', 'climatetech', 'agtech', 'foodtech', 'retailtech', 'martech', 'adtech', 'hrtech', 'legaltech', 'regtech', 'compliance', 'cybersecurity', 'privacy', 'gdpr', 'ccpa', 'sox', 'dodd frank', 'basel', 'mifid', 'psd2', 'open banking', 'api', 'sdk', 'webhook', 'rest', 'graphql', 'grpc', 'microservices', 'serverless', 'containers', 'kubernetes', 'docker', 'devops', 'ci cd', 'git', 'github', 'gitlab', 'bitbucket', 'jira', 'confluence', 'slack', 'teams', 'zoom', 'webex', 'meet', 'hangouts', 'discord', 'telegram', 'whatsapp', 'signal', 'matrix', 'element', 'rocket chat', 'mattermost', 'zulip', 'riot', 'wire', 'threema', 'session', 'briar', 'tox', 'retroshare', 'gnunet', 'freenet', 'i2p', 'tor', 'vpn', 'proxy', 'firewall', 'antivirus', 'malware', 'ransomware', 'phishing', 'social engineering', 'penetration testing', 'vulnerability assessment', 'security audit', 'compliance audit', 'risk assessment', 'threat modeling', 'security architecture', 'zero trust', 'least privilege', 'defense in depth', 'layered security', 'multi factor', 'authentication', 'authorization', 'access control', 'identity management', 'single sign on', 'sso', 'federation', 'saml', 'oauth', 'openid connect', 'jwt', 'token', 'session', 'cookie', 'cache', 'redis', 'memcached', 'database', 'sql', 'nosql', 'mongodb', 'cassandra', 'dynamodb', 'cosmosdb', 'neo4j', 'postgresql', 'mysql', 'oracle', 'sql server', 'db2', 'teradata', 'snowflake', 'bigquery', 'redshift', 'athena', 'presto', 'hive', 'spark', 'hadoop', 'kafka', 'pulsar', 'rabbitmq', 'activemq', 'ibm mq', 'tibco', 'websphere', 'weblogic', 'tomcat', 'jetty', 'nginx', 'apache', 'iis', 'caddy', 'traefik', 'haproxy', 'varnish', 'cloudflare', 'aws', 'azure', 'gcp', 'ibm cloud', 'oracle cloud', 'alibaba cloud', 'tencent cloud', 'huawei cloud', 'digital ocean', 'linode', 'vultr', 'heroku', 'netlify', 'vercel', 'render', 'fly', 'railway', 'supabase', 'firebase', 'planetscale', 'cockroachdb', 'yugabyte', 'tidb', 'clickhouse', 'timescaledb', 'influxdb', 'prometheus', 'grafana', 'elk', 'elasticsearch', 'logstash', 'kibana', 'splunk', 'datadog', 'new relic', 'appdynamics', 'dynatrace', 'sumo logic', 'honeycomb', 'lightstep', 'jaeger', 'zipkin', 'opentelemetry', 'opencensus', 'statsd', 'telegraf', 'collectd', 'fluentd', 'fluentbit', 'vector', 'logstash', 'beats', 'filebeat', 'metricbeat', 'packetbeat', 'heartbeat', 'auditbeat', 'functionbeat', 'winlogbeat', 'journalbeat', 'osquerybeat', 'apm', 'rum', 'synthetic', 'real user monitoring', 'synthetic monitoring', 'performance monitoring', 'infrastructure monitoring', 'log monitoring', 'security monitoring', 'compliance monitoring', 'cost monitoring', 'usage monitoring', 'capacity planning', 'scaling', 'auto scaling', 'horizontal', 'vertical', 'load balancing', 'traffic management', 'cdn', 'edge computing', 'fog computing', 'mist computing', 'distributed computing', 'grid computing', 'cluster computing', 'parallel computing', 'concurrent computing', 'asynchronous', 'synchronous', 'blocking', 'non blocking', 'event driven', 'reactive', 'functional', 'object oriented', 'procedural', 'declarative', 'imperative', 'logic', 'constraint', 'rule based', 'expert system', 'knowledge base', 'ontology', 'semantic web', 'linked data', 'rdf', 'sparql', 'owl', 'skos', 'foaf', 'dublin core', 'schema.org', 'json ld', 'microdata', 'rdfa', 'turtle', 'n3', 'ntriples', 'nquads', 'trig', 'json ld', 'yaml', 'xml', 'html', 'css', 'javascript', 'typescript', 'python', 'java', 'c#', 'c++', 'c', 'go', 'rust', 'swift', 'kotlin', 'scala', 'clojure', 'haskell', 'erlang', 'elixir', 'f#', 'ocaml', 'racket', 'scheme', 'lisp', 'prolog', 'smalltalk', 'ruby', 'php', 'perl', 'r', 'matlab', 'octave', 'julia', 'fortran', 'cobol', 'ada', 'pascal', 'delphi', 'visual basic', 'vb.net', 'powershell', 'bash', 'zsh', 'fish', 'tcsh', 'ksh', 'dash', 'ash', 'busybox', 'alpine', 'ubuntu', 'debian', 'centos', 'rhel', 'fedora', 'opensuse', 'sles', 'arch', 'gentoo', 'slackware', 'freebsd', 'openbsd', 'netbsd', 'dragonfly', 'minix', 'plan9', 'inferno', 'unix', 'linux', 'windows', 'macos', 'ios', 'android', 'tizen', 'webos', 'fuchsia', 'chrome os', 'firefox os', 'sailfish', 'ubuntu touch', 'postmarketos', 'pureos', 'trisquel', 'parabola', 'hyperbola', 'guix', 'nixos', 'void', 'artix', 'endeavouros', 'manjaro', 'mx linux', 'pop os', 'elementary', 'zorin', 'mint', 'deepin', 'kali', 'parrot', 'blackarch', 'backbox', 'pentoo', 'wifi slax', 'tiny core', 'puppy', 'slitaz', 'porteus', 'antiX', 'bunsenlabs', 'crunchbang', 'sparky', 'peppermint', 'lubuntu', 'xubuntu', 'kubuntu', 'ubuntu mate', 'ubuntu budgie', 'ubuntu cinnamon', 'ubuntu kylin', 'ubuntu studio', 'edubuntu', 'mythbuntu', 'xubuntu', 'lubuntu', 'kubuntu', 'ubuntu mate', 'ubuntu budgie', 'ubuntu cinnamon', 'ubuntu kylin', 'ubuntu studio', 'edubuntu', 'mythbuntu', 'xubuntu', 'lubuntu', 'kubuntu', 'ubuntu mate', 'ubuntu budgie', 'ubuntu cinnamon', 'ubuntu kylin', 'ubuntu studio', 'edubuntu', 'mythbuntu']):
+                user_message = f"""User asked a general trading/investment question: "{user_question}"
+
+{conversation_context}
+
+Please provide a comprehensive, educational answer about trading and investment concepts. Explain the topic clearly, provide practical insights, and include relevant examples. Be helpful for both beginners and experienced traders. Focus on the specific question asked and provide actionable advice when appropriate."""
+
+            # Handle general questions about capabilities
+            elif any(general in question_lower for general in ['how are you', 'what can you do', 'help', 'what do you do']):
+                user_message = f"""User asked: "{user_question}"
+
+{conversation_context}
+
+Please explain that you're an AI portfolio advisor and trading expert who can help with both general trading/investment questions and specific portfolio analysis. Mention your capabilities in providing educational content, market insights, and personalized portfolio advice. Keep it concise and focused on what they asked."""
+            
+            else:
+                # General portfolio analysis questions
+                context = self._prepare_portfolio_context(portfolio_data, simulation_data)
+                user_message = f"""User asked: "{user_question}"
+
+Here is their current portfolio state:
+
+{context}
+
+{conversation_context}
+
+Please provide a focused analysis that directly addresses their question. Be specific about their actual holdings, values, and performance metrics. Keep it concise and relevant to what they asked."""
 
             # Call Cerebras API
             print(f"Making API call to Cerebras...")
@@ -429,6 +488,9 @@ Please provide a detailed analysis covering:
         
         return context
 
+# Initialize AI advisor as a global instance
+advisor = AIAdvisor()
+
 class SimulationManager:
     def __init__(self, simulation_id, initial_cash, start_date, duration_days, trading_frequency, tickers, trading_rules, beta_hedge_enabled=False):
         self.simulation_id = simulation_id
@@ -553,18 +615,9 @@ class SimulationManager:
                 
                 # Also fetch VOO price for hedging if beta hedge is enabled
                 if self.beta_hedge_enabled and 'VOO' not in current_prices:
-                    try:
-                        start_date = (currtime - timedelta(days=5)).strftime('%Y-%m-%d')
-                        end_date = (currtime + timedelta(days=5)).strftime('%Y-%m-%d')
-                        voo_data = StockData('VOO', start_date, end_date)
-                        voo_data.get_stock_data('VOO', start_date, end_date, '1d')
-                        voo_data.curtime = currtime
-                        voo_price = voo_data.get_price()
-                        if voo_price:
-                            current_prices['VOO'] = voo_price
-                            print(f"DEBUG: Pre-fetched VOO price: ${voo_price}")
-                    except Exception as e:
-                        print(f"DEBUG: Could not pre-fetch VOO price: {e}")
+                    voo_price = self._get_voo_price(currtime)
+                    if voo_price:
+                        current_prices['VOO'] = voo_price
                 
                 # Get current prices for trading rule tickers (if not already fetched)
                 for ticker in self.trading_rules.keys():
@@ -719,10 +772,21 @@ class SimulationManager:
                 # Calculate portfolio beta
                 beta_result = port.calculate_portfolio_beta()
                 
-                # Calculate hedge statistics
-                hedge_trades_count = len(port.hedge_trades) if hasattr(port, 'hedge_trades') else 0
-                total_hedge_margin_used = sum(trade['margin_used'] for trade in port.hedge_trades) if hasattr(port, 'hedge_trades') else 0
-                hedge_margin_remaining = port.get_hedge_margin_balance()
+                # Calculate hedge statistics with error handling
+                try:
+                    hedge_trades_count = len(port.hedge_trades) if hasattr(port, 'hedge_trades') else 0
+                    total_hedge_margin_used = sum(trade.get('margin_used', 0) for trade in port.hedge_trades) if hasattr(port, 'hedge_trades') else 0
+                    hedge_margin_remaining = port.get_hedge_margin_balance() if hasattr(port, 'get_hedge_margin_balance') else 0
+                except Exception as e:
+                    print(f"DEBUG: Error calculating hedge statistics: {e}")
+                    hedge_trades_count = 0
+                    total_hedge_margin_used = 0
+                    hedge_margin_remaining = 0
+                
+                print(f"DEBUG: Creating final_metrics - Final value: ${final_value}, Total return: {total_return}%")
+                
+                # Calculate hedge impact analysis
+                hedge_analysis = self._calculate_hedge_impact(port) if self.beta_hedge_enabled else None
                 
                 self.final_metrics = {
                     'total_return_pct': round(total_return, 2),
@@ -738,10 +802,14 @@ class SimulationManager:
                     'hedge_trades_count': hedge_trades_count,
                     'total_hedge_margin_used': round(total_hedge_margin_used, 2),
                     'hedge_margin_remaining': round(hedge_margin_remaining, 2),
-                    'hedge_trades': port.hedge_trades if hasattr(port, 'hedge_trades') else []
+                    'hedge_trades': port.hedge_trades if hasattr(port, 'hedge_trades') else [],
+                    'hedge_analysis': hedge_analysis  # New comprehensive hedge analysis
                 }
+                
+                print(f"DEBUG: Final metrics created successfully: {self.final_metrics}")
             
             self.is_complete = True
+            self.is_running = False
             
             # Update global portfolio state for AI
             update_portfolio_state(self.simulation_id, {
@@ -755,11 +823,255 @@ class SimulationManager:
             print(f"Simulation {self.simulation_id} completed successfully")
             
         except Exception as e:
+            print(f"ERROR: Simulation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Create basic final_metrics even if simulation failed
+            if not hasattr(self, 'final_metrics'):
+                final_value = self.initial_cash  # Fallback to initial cash
+                self.final_metrics = {
+                    'total_return_pct': 0.0,
+                    'final_value': final_value,
+                    'total_pnl': 0.0,
+                    'sharpe_ratio': None,
+                    'volatility_pct': None,
+                    'total_trades': 0,
+                    'final_positions': {},
+                    'beta': None,
+                    'beta_interpretation': 'N/A',
+                    'correlation': None,
+                    'hedge_trades_count': 0,
+                    'total_hedge_margin_used': 0.0,
+                    'hedge_margin_remaining': 0.0,
+                    'hedge_trades': []
+                }
+                print(f"DEBUG: Created fallback final_metrics due to error")
+            
             self.error = str(e)
             self.is_complete = True
+            self.is_running = False
+    
+    def _get_voo_price(self, currtime):
+        """Get VOO price with robust error handling and fallback logic"""
+        try:
+            import yfinance as yf
+            
+            # For daily simulations, just use the date part
+            current_date = currtime.date()
+            
+            # Try to get recent VOO data (last 10 trading days)
+            end_date = current_date + timedelta(days=1)  # Include current date
+            start_date = current_date - timedelta(days=14)  # Go back 2 weeks
+            
+            print(f"DEBUG: Fetching VOO price for {current_date} (range: {start_date} to {end_date})")
+            
+            # Use yfinance directly for more reliable data fetching
+            voo_ticker = yf.Ticker('VOO')
+            voo_data = voo_ticker.history(start=start_date, end=end_date, interval='1d')
+            
+            if voo_data.empty:
+                print(f"DEBUG: No VOO data available for date range {start_date} to {end_date}")
+                return None
+            
+            # Find the closest trading day to our current date
+            available_dates = [d.date() for d in voo_data.index]
+            print(f"DEBUG: Available VOO trading dates: {available_dates}")
+            
+            # Try exact date match first
+            if current_date in available_dates:
+                row = voo_data[voo_data.index.date == current_date].iloc[0]
+                price = (row['High'] + row['Low']) / 2
+                print(f"DEBUG: Found exact VOO price for {current_date}: ${price:.2f}")
+                return float(price)
+            
+            # Find closest trading day (within 5 days)
+            date_diffs = [(abs((d - current_date).days), d) for d in available_dates]
+            date_diffs.sort()
+            
+            for days_diff, trading_date in date_diffs:
+                if days_diff <= 5:  # Only use dates within 5 days
+                    row = voo_data[voo_data.index.date == trading_date].iloc[0]
+                    price = (row['High'] + row['Low']) / 2
+                    print(f"DEBUG: Using VOO price from {trading_date} (closest to {current_date}): ${price:.2f}")
+                    return float(price)
+            
+            print(f"DEBUG: No recent VOO data within 5 days of {current_date}")
+            return None
+            
+        except Exception as e:
+            print(f"DEBUG: Error fetching VOO price: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def _calculate_hedge_impact(self, port):
+        """Calculate the impact of hedging by comparing hedged vs non-hedged performance"""
+        try:
+            print("DEBUG: Calculating hedge impact analysis...")
+            
+            # Separate regular trades from hedge trades
+            regular_trades = [trade for trade in port.past_trades if not trade.get('is_hedge', False)]
+            hedge_trades = port.hedge_trades if hasattr(port, 'hedge_trades') else []
+            
+            print(f"DEBUG: Regular trades: {len(regular_trades)}, Hedge trades: {len(hedge_trades)}")
+            
+            # Calculate what portfolio would have been without hedging
+            non_hedged_value = self._simulate_without_hedging(port, regular_trades)
+            hedged_value = port.get_value(self.results[-1]['date'] if self.results else datetime.now())
+            
+            # Calculate hedge impact on key metrics
+            hedge_pnl = hedged_value - non_hedged_value
+            hedge_return_impact = (hedge_pnl / self.initial_cash) * 100
+            
+            # Calculate beta impact
+            original_beta = self._calculate_portfolio_beta_without_hedging(port, regular_trades)
+            hedged_beta = port.calculate_portfolio_beta()
+            
+            beta_reduction = (original_beta.get('beta', 0) - hedged_beta.get('beta', 0)) if original_beta and hedged_beta else 0
+            
+            # Calculate volatility impact
+            hedged_volatility = port.calculate_volatility() or 0
+            non_hedged_volatility = self._calculate_volatility_without_hedging(port, regular_trades)
+            volatility_reduction = (non_hedged_volatility - hedged_volatility) * 100
+            
+            hedge_analysis = {
+                'non_hedged_value': round(non_hedged_value, 2),
+                'hedged_value': round(hedged_value, 2),
+                'hedge_pnl': round(hedge_pnl, 2),
+                'hedge_return_impact_pct': round(hedge_return_impact, 2),
+                'original_beta': round(original_beta.get('beta', 0), 3) if original_beta else 0,
+                'hedged_beta': round(hedged_beta.get('beta', 0), 3) if hedged_beta else 0,
+                'beta_reduction': round(beta_reduction, 3),
+                'volatility_reduction_pct': round(volatility_reduction, 2),
+                'hedge_effectiveness': self._calculate_hedge_effectiveness(hedge_pnl, beta_reduction),
+                'total_hedge_trades': len(hedge_trades),
+                'hedge_cost': self._calculate_hedge_cost(hedge_trades)
+            }
+            
+            print(f"DEBUG: Hedge analysis completed: {hedge_analysis}")
+            return hedge_analysis
+            
+        except Exception as e:
+            print(f"DEBUG: Error calculating hedge impact: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'error': str(e),
+                'non_hedged_value': 0,
+                'hedged_value': 0,
+                'hedge_pnl': 0,
+                'hedge_return_impact_pct': 0,
+                'beta_reduction': 0,
+                'volatility_reduction_pct': 0,
+                'hedge_effectiveness': 'Unknown',
+                'total_hedge_trades': 0,
+                'hedge_cost': 0
+            }
+    
+    def _simulate_without_hedging(self, port, regular_trades):
+        """Simulate what the portfolio value would be with only regular trades"""
+        try:
+            # Start with initial cash
+            value = self.initial_cash
+            
+            # Add value from regular trades only
+            for trade in regular_trades:
+                if trade.get('action') == 'buy':
+                    # For buys, we spent cash but got shares
+                    continue  # Value already accounted for in current positions
+                elif trade.get('action') == 'sell':
+                    # For sells, we got cash
+                    value += trade.get('total_value', 0)
+            
+            # Add current value of positions (excluding hedge positions)
+            for ticker, shares in port.positions.items():
+                if ticker != 'VOO':  # Exclude VOO as it's likely hedge-related
+                    # Get current price - use last result if available
+                    if self.results:
+                        last_result = self.results[-1]
+                        if 'prices' in last_result and ticker in last_result['prices']:
+                            current_price = last_result['prices'][ticker]
+                            value += shares * current_price
+            
+            return value
+            
+        except Exception as e:
+            print(f"DEBUG: Error simulating without hedging: {e}")
+            return self.initial_cash
+    
+    def _calculate_portfolio_beta_without_hedging(self, port, regular_trades):
+        """Calculate what portfolio beta would be without hedge positions"""
+        try:
+            # Create a temporary portfolio with only regular positions
+            regular_positions = {k: v for k, v in port.positions.items() if k != 'VOO'}
+            
+            # Use the portfolio's beta calculation but with modified positions
+            original_positions = port.positions.copy()
+            port.positions = regular_positions
+            beta_result = port.calculate_portfolio_beta()
+            port.positions = original_positions  # Restore original positions
+            
+            return beta_result
+            
+        except Exception as e:
+            print(f"DEBUG: Error calculating beta without hedging: {e}")
+            return {'beta': 0, 'interpretation': 'Unknown', 'correlation': 0}
+    
+    def _calculate_volatility_without_hedging(self, port, regular_trades):
+        """Calculate what portfolio volatility would be without hedging"""
+        try:
+            # This is a simplified calculation - in reality you'd need to recalculate
+            # the entire portfolio time series without hedge trades
+            base_volatility = port.calculate_volatility() or 0
+            
+            # Estimate that hedging typically reduces volatility by 10-30%
+            # This is a rough estimate - could be made more precise
+            estimated_original_volatility = base_volatility * 1.2
+            
+            return estimated_original_volatility
+            
+        except Exception as e:
+            print(f"DEBUG: Error calculating volatility without hedging: {e}")
+            return 0
+    
+    def _calculate_hedge_effectiveness(self, hedge_pnl, beta_reduction):
+        """Calculate how effective the hedging strategy was"""
+        try:
+            if abs(beta_reduction) < 0.01:
+                return "Minimal Impact"
+            elif abs(beta_reduction) > 0.5:
+                if hedge_pnl > -1000:  # Didn't cost too much
+                    return "Highly Effective"
+                else:
+                    return "Effective but Costly"
+            else:
+                if hedge_pnl > 0:
+                    return "Profitable Hedge"
+                else:
+                    return "Moderately Effective"
+        except:
+            return "Unknown"
+    
+    def _calculate_hedge_cost(self, hedge_trades):
+        """Calculate the total cost of hedging (commissions, bid-ask spreads, etc.)"""
+        try:
+            # Simple cost calculation - could be made more sophisticated
+            total_cost = 0
+            for trade in hedge_trades:
+                # Assume a small cost per trade (commission + spread)
+                trade_value = trade.get('total_value', 0)
+                cost = trade_value * 0.001  # 0.1% cost per trade
+                total_cost += cost
+            
+            return round(total_cost, 2)
+            
+        except Exception as e:
+            print(f"DEBUG: Error calculating hedge cost: {e}")
+            return 0
     
     def _execute_beta_hedge(self, port, currtime, current_prices, data):
-        """Execute beta hedging by shorting VOO when beta > 0"""
+        """Execute bidirectional beta hedging: short VOO for positive beta, buy VOO for negative beta"""
         try:
             # Calculate current portfolio beta
             beta_result = port.calculate_portfolio_beta()
@@ -777,103 +1089,122 @@ class SimulationManager:
             # Get VOO price
             voo_price = current_prices.get('VOO')
             if not voo_price:
-                # Try to fetch VOO price if not already available
-                try:
-                    # Use a date range to ensure we get data
-                    start_date = (currtime - timedelta(days=5)).strftime('%Y-%m-%d')
-                    end_date = (currtime + timedelta(days=5)).strftime('%Y-%m-%d')
-                    voo_data = StockData('VOO', start_date, end_date)
-                    voo_data.get_stock_data('VOO', start_date, end_date, '1d')
-                    voo_data.curtime = currtime
-                    voo_price = voo_data.get_price()
-                    if voo_price:
-                        current_prices['VOO'] = voo_price
-                        print(f"DEBUG: Successfully fetched VOO price: ${voo_price}")
-                    else:
-                        print(f"DEBUG: VOO price is None after fetching")
-                except Exception as e:
-                    print(f"DEBUG: Could not fetch VOO price: {e}")
-                    return []
+                voo_price = self._get_voo_price(currtime)
+                if voo_price:
+                    current_prices['VOO'] = voo_price
             
             if not voo_price:
                 print("DEBUG: VOO price not available for hedging")
                 return []
             
-            # Calculate how much VOO to short to hedge the beta
-            # We want to short enough VOO to bring beta to 0
-            # Since VOO has beta ≈ 1, we need to short: portfolio_value * current_beta / voo_price
+            # Calculate how much VOO to trade to hedge the beta towards 0
+            # For positive beta: short VOO to reduce market exposure
+            # For negative beta: buy VOO to increase market exposure back to neutral
             portfolio_value = port.get_value(currtime)
             
-            # Simple hedging calculation: short VOO equal to portfolio_value * beta
-            # This will neutralize the portfolio's market exposure
+            # Calculate shares needed to neutralize beta
+            # Since VOO has beta ≈ 1, we need: portfolio_value * current_beta / voo_price
             shares_to_trade = (portfolio_value * current_beta) / voo_price
             print(f"DEBUG: Portfolio value: ${portfolio_value:.2f}")
             print(f"DEBUG: Current beta: {current_beta:.3f}")
             print(f"DEBUG: VOO price: ${voo_price:.2f}")
             print(f"DEBUG: Calculated shares to trade: {shares_to_trade:.1f}")
             
+            # Determine hedge direction based on beta sign
+            if current_beta > 0:
+                hedge_action = 'short'
+                print(f"DEBUG: POSITIVE BETA - Will SHORT {abs(shares_to_trade):.1f} VOO shares to reduce market exposure")
+            else:
+                hedge_action = 'buy'
+                print(f"DEBUG: NEGATIVE BETA - Will BUY {abs(shares_to_trade):.1f} VOO shares on margin to increase market exposure")
+            
             # Round to whole shares and add safety limits
-            shares_to_trade = int(shares_to_trade)
+            shares_to_trade = int(abs(shares_to_trade))  # Always use absolute value, direction determined by hedge_action
             
             # Safety check: don't hedge more than 50% of portfolio value
             max_hedge_value = portfolio_value * 0.5
             max_shares = int(max_hedge_value / voo_price)
             
-            if abs(shares_to_trade) > max_shares:
-                shares_to_trade = max_shares if shares_to_trade > 0 else -max_shares
+            if shares_to_trade > max_shares:
+                shares_to_trade = max_shares
                 print(f"DEBUG: Limited hedge to ${max_hedge_value:.2f} (max shares: {max_shares})")
             
-            print(f"DEBUG: Final shares_to_trade: {shares_to_trade}")
+            print(f"DEBUG: Final shares_to_trade: {shares_to_trade}, action: {hedge_action}")
             
             if shares_to_trade > 0:
-                # Short VOO to hedge positive beta (shares_to_trade is positive, so we short)
-                shares_to_short = shares_to_trade
-                print(f"DEBUG: POSITIVE BETA - Attempting to short {shares_to_short} VOO shares at ${voo_price}")
-                success, message = port.execute_hedge_trade('VOO', voo_price, shares_to_short, currtime, 'short')
-                if success:
-                    hedge_trade = f"Hedged beta: {message} (beta was {current_beta:.3f})"
-                    print(f"DEBUG: {hedge_trade}")
-                    return [hedge_trade]
-                else:
-                    print(f"DEBUG: Short hedge failed: {message}")
-                    # Try partial hedge based on available margin
-                    available_margin = port.get_hedge_margin_balance()
-                    max_shares = int((available_margin * 2) / voo_price)  # 2x leverage with 50% margin
-                    if max_shares > 0:
-                        print(f"DEBUG: Trying partial short hedge with {max_shares} shares")
-                        success, message = port.execute_hedge_trade('VOO', voo_price, max_shares, currtime, 'short')
-                        if success:
-                            hedge_trade = f"Partial hedge: {message} (beta was {current_beta:.3f})"
-                            print(f"DEBUG: {hedge_trade}")
-                            return [hedge_trade]
-                        else:
-                            print(f"DEBUG: Partial short hedge failed: {message}")
-                    else:
-                        print(f"DEBUG: Insufficient hedge margin for short hedge. Available: ${available_margin:.2f}")
-            elif shares_to_trade < 0:
-                # Buy back VOO to hedge negative beta
-                shares_to_buy = abs(shares_to_trade)
-                current_shorts = port.short_positions.get('VOO', 0)
-                print(f"DEBUG: NEGATIVE BETA - Attempting to buy back {shares_to_buy} VOO shares at ${voo_price}")
-                
-                # Don't try to buy back more than we have short
-                if shares_to_buy > current_shorts:
-                    shares_to_buy = current_shorts
-                    print(f"DEBUG: Limiting buy back to available shorts: {shares_to_buy} (had {current_shorts} shorts)")
-                
-                if shares_to_buy > 0:
-                    print(f"DEBUG: Attempting to buy back {shares_to_buy} VOO shares at ${voo_price}")
-                    success, message = port.execute_hedge_trade('VOO', voo_price, shares_to_buy, currtime, 'buy')
+                if hedge_action == 'short':
+                    # POSITIVE BETA: Short VOO to reduce market exposure
+                    print(f"DEBUG: Executing SHORT hedge for positive beta")
+                    success, message = port.execute_hedge_trade('VOO', voo_price, shares_to_trade, currtime, 'short')
                     if success:
-                        hedge_trade = f"Hedged beta: {message} (beta was {current_beta:.3f})"
+                        hedge_trade = f"Hedged positive beta: {message} (beta was {current_beta:.3f})"
                         print(f"DEBUG: {hedge_trade}")
                         return [hedge_trade]
                     else:
-                        print(f"DEBUG: Buy back hedge failed: {message}")
-                else:
-                    print(f"DEBUG: No VOO shorts to buy back (current shorts: {current_shorts})")
+                        print(f"DEBUG: Short hedge failed: {message}")
+                        # Try partial hedge based on available margin
+                        available_margin = port.get_hedge_margin_balance()
+                        max_shares = int((available_margin * 2) / voo_price)  # 2x leverage with 50% margin
+                        if max_shares > 0:
+                            print(f"DEBUG: Trying partial short hedge with {max_shares} shares")
+                            success, message = port.execute_hedge_trade('VOO', voo_price, max_shares, currtime, 'short')
+                            if success:
+                                hedge_trade = f"Partial positive hedge: {message} (beta was {current_beta:.3f})"
+                                print(f"DEBUG: {hedge_trade}")
+                                return [hedge_trade]
+                
+                elif hedge_action == 'buy':
+                    # NEGATIVE BETA: Buy VOO on margin to increase market exposure
+                    print(f"DEBUG: Executing BUY hedge for negative beta")
+                    current_shorts = port.short_positions.get('VOO', 0)
+                    
+                    if current_shorts > 0:
+                        # First, buy back existing shorts
+                        shares_to_cover = min(shares_to_trade, current_shorts)
+                        print(f"DEBUG: Covering {shares_to_cover} existing VOO short shares first")
+                        success, message = port.execute_hedge_trade('VOO', voo_price, shares_to_cover, currtime, 'buy')
+                        if success:
+                            hedge_trade = f"Covered shorts for negative hedge: {message} (beta was {current_beta:.3f})"
+                            print(f"DEBUG: {hedge_trade}")
+                            
+                            # If we need more exposure beyond covering shorts
+                            remaining_shares = shares_to_trade - shares_to_cover
+                            if remaining_shares > 0:
+                                print(f"DEBUG: Need {remaining_shares} more shares - buying VOO on margin")
+                                success2, message2 = port.execute_hedge_trade('VOO', voo_price, remaining_shares, currtime, 'buy_margin')
+                                
+                                if success2:
+                                    hedge_trade += f" + Additional buy: {message2}"
+                                    print(f"DEBUG: Additional margin buy successful")
+                            
+                            return [hedge_trade]
+                    else:
+                        # No shorts to cover, buy directly on margin
+                        print(f"DEBUG: No existing shorts, buying {shares_to_trade} VOO shares on margin for negative hedge")
+                        success, message = port.execute_hedge_trade('VOO', voo_price, shares_to_trade, currtime, 'buy_margin')
+                        
+                        if success:
+                            hedge_trade = f"Hedged negative beta: {message} (beta was {current_beta:.3f})"
+                            print(f"DEBUG: {hedge_trade}")
+                            return [hedge_trade]
+                        else:
+                            print(f"DEBUG: Buy margin hedge failed: {message}")
+                            # Try partial hedge based on available margin
+                            available_margin = port.get_hedge_margin_balance()
+                            max_shares = int((available_margin * 2) / voo_price)  # 2x leverage
+                            if max_shares > 0:
+                                print(f"DEBUG: Trying partial margin buy hedge with {max_shares} shares")
+                                success, message = port.execute_hedge_trade('VOO', voo_price, max_shares, currtime, 'buy_margin')
+                                if success:
+                                    hedge_trade = f"Partial negative hedge on margin: {message} (beta was {current_beta:.3f})"
+                                    print(f"DEBUG: {hedge_trade}")
+                                    return [hedge_trade]
+                                else:
+                                    print(f"DEBUG: Partial margin buy failed: {message}")
+                            else:
+                                print(f"DEBUG: Insufficient margin for hedge. Available: ${available_margin:.2f}")
             else:
-                print(f"DEBUG: No shares to trade (shares_to_trade: {shares_to_trade})")
+                print(f"DEBUG: No hedging needed - calculated shares_to_trade is 0")
             
             return []
             
@@ -981,8 +1312,30 @@ def simulation_status(simulation_id):
         'progress': len(simulation.results) / simulation.duration_days if simulation.duration_days > 0 else 0
     }
     
-    if hasattr(simulation, 'final_metrics'):
-        response['final_metrics'] = simulation.final_metrics
+    # Always include final_metrics if simulation is complete
+    if simulation.is_complete:
+        if hasattr(simulation, 'final_metrics'):
+            response['final_metrics'] = simulation.final_metrics
+            print(f"DEBUG: Including final_metrics in response: {simulation.final_metrics}")
+        else:
+            print(f"DEBUG: Simulation complete but no final_metrics found!")
+            # Create basic final_metrics as fallback
+            response['final_metrics'] = {
+                'total_return_pct': 0.0,
+                'final_value': simulation.initial_cash,
+                'total_pnl': 0.0,
+                'sharpe_ratio': None,
+                'volatility_pct': None,
+                'total_trades': 0,
+                'final_positions': {},
+                'beta': None,
+                'beta_interpretation': 'N/A',
+                'correlation': None,
+                'hedge_trades_count': 0,
+                'total_hedge_margin_used': 0.0,
+                'hedge_margin_remaining': 0.0,
+                'hedge_trades': []
+            }
     
     if hasattr(simulation, 'error'):
         response['error'] = simulation.error
@@ -1017,9 +1370,6 @@ def ai_analysis():
         data = request.json
         simulation_id = data.get('simulation_id')
         user_question = data.get('question', '')
-        
-        # Initialize AI advisor
-        advisor = AIAdvisor()
         
         # If no simulation_id provided, use global portfolio state
         if not simulation_id:
@@ -1094,6 +1444,25 @@ def ai_analysis():
             'analysis': analysis,
             'timestamp': datetime.now().isoformat(),
             'source': 'specific_simulation'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/clear_chat', methods=['POST'])
+def clear_chat():
+    """Clear the AI advisor conversation history"""
+    try:
+        # Clear conversation history from the global advisor instance
+        advisor.clear_conversation_history()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Chat history cleared successfully',
+            'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:

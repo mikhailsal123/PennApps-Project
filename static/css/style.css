@@ -1,26 +1,29 @@
 body {
-    background-color: #f8f9fa;
+    background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .sidebar {
-    background-color: white;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
     min-height: 100vh;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    box-shadow: 2px 0 10px rgba(0,0,0,0.08);
     padding: 20px;
+    border-right: 1px solid #e2e8f0;
 }
 
 .card {
-    border: none;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border-radius: 12px;
+    background: white;
 }
 
 .card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #06b6d4 100%);
     color: white;
-    border-radius: 10px 10px 0 0 !important;
+    border-radius: 12px 12px 0 0 !important;
     padding: 15px 20px;
+    border-bottom: 1px solid #3b82f6;
 }
 
 .card-header h3, .card-header h4, .card-header h5 {
@@ -40,8 +43,8 @@ body {
 }
 
 .form-control:focus, .form-select:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
 }
 
 .btn {
@@ -51,47 +54,70 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
     border: none;
+    color: white;
+    box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, #047857 0%, #059669 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3);
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
     border: none;
+    color: white;
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
 }
 
 .btn-danger:hover {
-    background: linear-gradient(135deg, #ff5252 0%, #d63031 100%);
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    border: none;
+    color: white;
+    box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #047857 0%, #059669 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3);
 }
 
 .progress {
     height: 20px;
     border-radius: 10px;
-    background-color: #e9ecef;
+    background-color: #e2e8f0;
+    border: 1px solid #cbd5e1;
 }
 
 .progress-bar {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
     border-radius: 10px;
     transition: width 0.3s ease;
+    box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
 }
 
 .ticker-input, .trading-rule {
-    border: 1px solid #e9ecef;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 10px;
-    background-color: #f8f9fa;
+    background-color: #f8fafc;
     transition: all 0.3s ease;
 }
 
-.trading-rule:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+.ticker-input:hover, .trading-rule:hover {
+    border-color: #3b82f6;
+    background-color: #f0f9ff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
 }
 
 .action-select {
@@ -156,12 +182,12 @@ body {
 
 .day-result.market-closed {
     background-color: #f8f9fa;
-    color: #6c757d;
+    color: #000000;
 }
 
 .price-display {
     font-weight: 600;
-    color: #495057;
+    color: #000000;
 }
 
 .trade-executed {
@@ -294,7 +320,7 @@ body {
 }
 
 .neutral {
-    color: #6c757d;
+    color: #000000;
 }
 
 #resultsContainer {
@@ -429,7 +455,7 @@ body {
 }
 
 .ai-message .message-content i {
-    color: #667eea;
+    color: #3b82f6;
 }
 
 .user-message {
@@ -441,17 +467,17 @@ body {
 }
 
 .user-message .message-content i {
-    color: #28a745;
+    color: #059669;
 }
 
 .user-message .message-text {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
     color: white;
 }
 
 .message-time {
     font-size: 0.75em;
-    color: #6c757d;
+    color: #000000;
     margin-top: 5px;
     text-align: right;
 }

@@ -129,7 +129,7 @@ class Portfolio:
                 return False, f"Insufficient cash. Need ${trade_value:.2f}, have ${self.cash:.2f}"
             
             # Execute buy back trade
-            self.positions[ticker] = self.positions.get(ticker, 0) + shares
+            # Don't add to positions - just close out the short
             self.cash -= trade_value
             
             # Reduce short position

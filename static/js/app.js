@@ -41,8 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
         welcomeTime.textContent = new Date().toLocaleTimeString();
     }
     
-    // Set a test simulation ID for immediate AI testing
-    currentSimulationId = 'test-simulation-123';
+    // currentSimulationId will be set when a simulation starts
     
     // Initialize duration limits
     updateDurationLimits();
@@ -135,6 +134,11 @@ function startStatusPolling() {
         fetch(`/simulation_status/${currentSimulationId}`)
         .then(response => response.json())
         .then(data => {
+            console.log('Simulation status data:', data);
+            console.log('Beta hedge enabled check - has final_metrics:', !!data.final_metrics);
+            console.log('Is complete:', data.is_complete);
+            console.log('Has error:', !!data.error);
+            
             updateProgress(data);
             updateResults(data);
             
@@ -215,11 +219,16 @@ function checkForExecutedOneTimeRules(data) {
 // Function to update hedge margin balance display
 function updateHedgeMarginBalance(data) {
     const hedgeMarginElement = document.getElementById('hedgeMarginBalance');
+    console.log('updateHedgeMarginBalance called with data:', data);
+    console.log('hedgeMarginElement found:', !!hedgeMarginElement);
+    
     if (hedgeMarginElement && data && data.results && data.results.length > 0) {
         const latestResult = data.results[data.results.length - 1];
+        console.log('Latest result hedge_margin_balance:', latestResult.hedge_margin_balance);
+        
         if (latestResult.hedge_margin_balance !== undefined) {
             const balance = latestResult.hedge_margin_balance;
-            hedgeMarginElement.textContent = `Hedge Margin: $${balance.toFixed(2)}`;
+            hedgeMarginElement.innerHTML = `<span class="me-2">Hedge Margin:</span><span>$${balance.toFixed(2)}</span>`;
             
             // Color code based on available margin
             if (balance < 1000) {
@@ -256,7 +265,7 @@ function addDayResult(result) {
         }
         pricesHtml += '</div>';
     } else {
-        pricesHtml = '<div class="text-muted"><i class="fas fa-calendar-times"></i> Market Closed</div>';
+        pricesHtml = '<div class="text-dark"><i class="fas fa-calendar-times"></i> Market Closed</div>';
     }
     
     let tradesHtml = '';
@@ -292,7 +301,7 @@ function addDayResult(result) {
             </div>
             <div class="text-end">
                 <div class="portfolio-value">$${result.portfolio_value.toLocaleString()}</div>
-                <small class="text-muted">P&L: $${result.pnl ? result.pnl.toFixed(2) : '0.00'}</small>
+                <small class="text-dark">P&L: $${result.pnl ? result.pnl.toFixed(2) : '0.00'}</small>
             </div>
         </div>
     `;
@@ -303,17 +312,32 @@ function addDayResult(result) {
 
 
 function showFinalResults(data) {
-    console.log('showFinalResults called with data:', data);
-    if (data.final_metrics) {
-        console.log('Final metrics found:', data.final_metrics);
-        const finalMetricsCard = document.getElementById('finalMetricsCard');
-        const finalMetrics = document.getElementById('finalMetrics');
-        console.log('Final metrics card element:', finalMetricsCard);
-        
-        finalMetrics.innerHTML = `
+    console.log('🎯 showFinalResults called with data:', data);
+    console.log('🔍 Checking for final metrics existence:', !!data.final_metrics);
+    
+    if (!data.final_metrics) {
+        console.error('❌ No final_metrics found in data!');
+        console.log('Available data keys:', Object.keys(data));
+        return;
+    }
+    
+    try {
+        if (data.final_metrics) {
+            console.log('📊 Final metrics found:', data.final_metrics);
+            console.log('💰 Final value:', data.final_metrics.final_value, 'type:', typeof data.final_metrics.final_value);
+            console.log('📈 Total return:', data.final_metrics.total_return_pct, 'type:', typeof data.final_metrics.total_return_pct);
+            console.log('⚡ Sharpe ratio:', data.final_metrics.sharpe_ratio, 'type:', typeof data.final_metrics.sharpe_ratio);
+            console.log('📊 Beta:', data.final_metrics.beta, 'type:', typeof data.final_metrics.beta);
+            
+            const finalMetricsCard = document.getElementById('finalMetricsCard');
+            const finalMetrics = document.getElementById('finalMetrics');
+            console.log('Final metrics card element:', finalMetricsCard);
+            console.log('Final metrics element:', finalMetrics);
+            
+            finalMetrics.innerHTML = `
             <div class="col-md-3">
                 <div class="metric-card">
-                    <div class="metric-value">$${data.final_metrics.final_value.toLocaleString()}</div>
+                    <div class="metric-value">$${isNaN(data.final_metrics.final_value) ? 'N/A' : data.final_metrics.final_value.toLocaleString()}</div>
                     <div class="metric-label">Final Value</div>
                 </div>
             </div>
@@ -328,7 +352,7 @@ function showFinalResults(data) {
             <div class="col-md-3">
                 <div class="metric-card">
                     <div class="metric-value ${data.final_metrics.total_pnl >= 0 ? 'positive' : 'negative'}">
-                        $${data.final_metrics.total_pnl.toLocaleString()}
+                        $${isNaN(data.final_metrics.total_pnl) ? 'N/A' : data.final_metrics.total_pnl.toLocaleString()}
                     </div>
                     <div class="metric-label">Total P&L</div>
                 </div>
@@ -336,7 +360,7 @@ function showFinalResults(data) {
             <div class="col-md-3">
                 <div class="metric-card">
                     <div class="metric-value">
-                        ${data.final_metrics.sharpe_ratio ? data.final_metrics.sharpe_ratio.toFixed(3) : 'N/A'}
+                        ${isNaN(data.final_metrics.sharpe_ratio) ? 'N/A' : data.final_metrics.sharpe_ratio.toFixed(3)}
                     </div>
                     <div class="metric-label">Sharpe Ratio</div>
                 </div>
@@ -344,16 +368,16 @@ function showFinalResults(data) {
             <div class="col-md-3">
                 <div class="metric-card">
                     <div class="metric-value">
-                        ${data.final_metrics.beta ? data.final_metrics.beta.toFixed(3) : 'N/A'}
+                        ${isNaN(data.final_metrics.beta) ? 'N/A' : data.final_metrics.beta.toFixed(3)}
                     </div>
                     <div class="metric-label">Beta</div>
-                    ${data.final_metrics.beta_interpretation ? `<div class="metric-subtitle">${data.final_metrics.beta_interpretation}</div>` : ''}
+                    ${data.final_metrics.beta_interpretation ? `<div class="metric-subtitle">${data.final_metrics.beta_interpretation.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` : ''}
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="metric-card">
                     <div class="metric-value">
-                        ${data.final_metrics.correlation ? data.final_metrics.correlation.toFixed(3) : 'N/A'}
+                        ${isNaN(data.final_metrics.correlation) ? 'N/A' : data.final_metrics.correlation.toFixed(3)}
                     </div>
                     <div class="metric-label">Market Correlation</div>
                 </div>
@@ -369,7 +393,7 @@ function showFinalResults(data) {
             <div class="col-md-3">
                 <div class="metric-card">
                     <div class="metric-value">
-                        $${data.final_metrics.total_hedge_margin_used ? data.final_metrics.total_hedge_margin_used.toLocaleString() : '0'}
+                        $${isNaN(data.final_metrics.total_hedge_margin_used) ? '0' : data.final_metrics.total_hedge_margin_used.toLocaleString()}
                     </div>
                     <div class="metric-label">Margin Used</div>
                 </div>
@@ -377,22 +401,27 @@ function showFinalResults(data) {
             <div class="col-md-3">
                 <div class="metric-card">
                     <div class="metric-value">
-                        $${data.final_metrics.hedge_margin_remaining ? data.final_metrics.hedge_margin_remaining.toLocaleString() : '0'}
+                        $${isNaN(data.final_metrics.hedge_margin_remaining) ? '0' : data.final_metrics.hedge_margin_remaining.toLocaleString()}
                     </div>
                     <div class="metric-label">Margin Remaining</div>
                 </div>
             </div>
         `;
         
-        finalMetricsCard.style.display = 'block';
-        console.log('Final metrics card should now be visible');
-    } else {
-        console.log('No final metrics found in data');
+        
+            finalMetricsCard.style.display = 'block';
+            console.log('Final metrics card should now be visible');
+        } else {
+            console.log('No final metrics found in data');
+        }
+        
+        // Update progress to 100%
+        document.getElementById('progressBar').style.width = '100%';
+        document.getElementById('progressText').textContent = 'Simulation Complete!';
+    } catch (error) {
+        console.error('Error in showFinalResults:', error);
+        console.error('Data that caused error:', data);
     }
-    
-    // Update progress to 100%
-    document.getElementById('progressBar').style.width = '100%';
-    document.getElementById('progressText').textContent = 'Simulation Complete!';
 }
 
 function collectFormData() {
@@ -640,6 +669,13 @@ function initializeAIChat() {
         });
     }
     
+    // Use event delegation for the clear button (works even if button is in collapsed element)
+    document.addEventListener('click', function(event) {
+        if (event.target && event.target.id === 'clearChatBtn') {
+            clearAIChat();
+        }
+    });
+    
     // Quick question buttons
     const quickQuestionBtns = document.querySelectorAll('.quick-question-btn');
     quickQuestionBtns.forEach(btn => {
@@ -656,7 +692,7 @@ function initializeAIChat() {
 function showAIAdvisor() {
     console.log('showAIAdvisor called, currentSimulationId:', currentSimulationId);
     const aiAdvisorCard = document.getElementById('aiAdvisorCard');
-    if (aiAdvisorCard && currentSimulationId) {
+    if (aiAdvisorCard) {
         console.log('Showing AI advisor card');
         aiAdvisorCard.style.display = 'block';
         
@@ -767,6 +803,99 @@ function formatMessage(text) {
     return text;
 }
 
+function clearAIChat() {
+    // Show confirmation dialog
+    if (confirm('Are you sure you want to clear the chat history? This action cannot be undone.')) {
+        // Clear the chat messages container
+        const chatMessages = document.getElementById('aiChatMessages');
+        
+        if (chatMessages) {
+            // Ensure the chat is visible
+            const chatCollapse = document.getElementById('aiChatCollapse');
+            if (chatCollapse) {
+                chatCollapse.classList.add('show');
+            }
+            
+            // Clear all existing messages
+            chatMessages.innerHTML = '';
+            
+            // Add the initial welcome message
+            const welcomeMessage = document.createElement('div');
+            welcomeMessage.className = 'message ai-message';
+            welcomeMessage.innerHTML = `
+                <div class="message-content">
+                    <i class="fas fa-robot"></i>
+                    <div class="message-text">
+                        Hello! I'm your AI Portfolio Advisor. I can analyze your portfolio performance, provide insights on your trading strategy, and suggest improvements. 
+                        <br><br>
+                        Try asking me questions like:
+                        <ul>
+                            <li>"How is my portfolio performing?"</li>
+                            <li>"What are the risks in my current strategy?"</li>
+                            <li>"How can I improve my diversification?"</li>
+                            <li>"Should I adjust my trading rules?"</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="message-time">${new Date().toLocaleTimeString()}</div>
+            `;
+            
+            chatMessages.appendChild(welcomeMessage);
+            
+            // Add a temporary visual indicator that clearing worked
+            chatMessages.style.backgroundColor = '#d4edda';
+            setTimeout(() => {
+                chatMessages.style.backgroundColor = '';
+            }, 1000);
+        }
+        
+        // Clear the chat input
+        const chatInput = document.getElementById('aiChatInput');
+        if (chatInput) {
+            chatInput.value = '';
+        }
+        
+        // Call the backend to clear conversation history
+        fetch('/clear_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Chat history cleared successfully');
+                // Show a brief success message
+                const chatMessages = document.getElementById('aiChatMessages');
+                if (chatMessages) {
+                    const successDiv = document.createElement('div');
+                    successDiv.className = 'alert alert-success alert-dismissible fade show';
+                    successDiv.innerHTML = `
+                        <i class="fas fa-check-circle"></i> Chat history cleared successfully!
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    chatMessages.appendChild(successDiv);
+                    
+                    // Remove the success message after 3 seconds
+                    setTimeout(() => {
+                        if (successDiv.parentNode) {
+                            successDiv.parentNode.removeChild(successDiv);
+                        }
+                    }, 3000);
+                }
+            } else {
+                console.error('Failed to clear chat history:', data.error);
+                alert('Failed to clear chat history. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error clearing chat history:', error);
+        });
+    }
+}
+
 function showTypingIndicator() {
     const chatMessages = document.getElementById('aiChatMessages');
     if (!chatMessages) return;
@@ -798,7 +927,13 @@ function hideTypingIndicator() {
 // Override the existing updateResults function to show AI advisor and plots
 const originalUpdateResults = updateResults;
 updateResults = function(data) {
-    console.log('updateResults override called with data:', data);
+    console.log('🚀 updateResults override called with data:', data);
+    console.log('📊 Data keys:', Object.keys(data));
+    console.log('✅ is_complete:', data.is_complete);
+    console.log('📈 has_final_metrics:', 'final_metrics' in data);
+    console.log('🆔 currentSimulationId:', currentSimulationId);
+    console.log('🔍 Final metrics preview:', data.final_metrics ? Object.keys(data.final_metrics) : 'No final metrics');
+    
     originalUpdateResults(data);
     
     // Check for executed one-time rules and trigger evaporation
@@ -811,16 +946,43 @@ updateResults = function(data) {
         currentSimulationId,
         resultsLength: data.results ? data.results.length : 0
     });
+    console.log('🔍 Checking completion conditions:', {
+        is_complete: data.is_complete,
+        has_error: !!data.error,
+        has_simulation_id: !!currentSimulationId,
+        has_final_metrics: !!data.final_metrics
+    });
+    
     if (data.is_complete && !data.error && currentSimulationId) {
-        console.log('Simulation complete, showing final results, AI advisor and plots...');
-        console.log('Final metrics data:', data.final_metrics);
-        setTimeout(() => {
+        console.log('✅ Simulation complete, showing final results, AI advisor and plots...');
+        console.log('📊 Final metrics in completion check:', data.final_metrics);
+        
+        // Show final results immediately if we have final_metrics
+        if (data.final_metrics) {
+            console.log('📈 Final metrics available, showing results now...');
             showFinalResults(data);
             showAIAdvisor();
             showPlotsCard();
-        }, 1000); // Small delay to let results display first
+        } else {
+            console.log('⏰ No final metrics yet, will retry in 1 second...');
+            setTimeout(() => {
+                // Fetch fresh data to get final_metrics
+                fetch(`/simulation_status/${currentSimulationId}`)
+                    .then(response => response.json())
+                    .then(freshData => {
+                        console.log('🔄 Fresh data fetched:', freshData);
+                        if (freshData.final_metrics) {
+                            showFinalResults(freshData);
+                            showAIAdvisor();
+                            showPlotsCard();
+                        } else {
+                            console.error('❌ Still no final_metrics in fresh data');
+                        }
+                    });
+            }, 1000);
+        }
     } else {
-        console.log('Not showing final results because:', {
+        console.log('❌ Not showing final results because:', {
             is_complete: data.is_complete,
             has_error: !!data.error,
             has_simulation_id: !!currentSimulationId
@@ -831,25 +993,35 @@ updateResults = function(data) {
 // Portfolio Plot Functions
 function showPlotsCard() {
     console.log('showPlotsCard called');
-    const plotsCard = document.getElementById('plotsCard');
-    console.log('plotsCard element:', plotsCard);
-    if (plotsCard) {
-        plotsCard.style.display = 'block';
-        plotsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
-        // Load the default plot (portfolio value)
-        console.log('Loading default plot...');
-        loadPlot('value');
-    } else {
-        console.error('plotsCard element not found!');
+    try {
+        const plotsCard = document.getElementById('plotsCard');
+        console.log('plotsCard element:', plotsCard);
+        if (plotsCard) {
+            plotsCard.style.display = 'block';
+            plotsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Load the default plot (portfolio value)
+            console.log('Loading default plot...');
+            loadPlot('value');
+        } else {
+            console.error('plotsCard element not found!');
+        }
+    } catch (error) {
+        console.error('Error in showPlotsCard:', error);
     }
 }
 
+
 function loadPlot(plotType) {
-    const plotContainer = document.getElementById('plotContainer');
-    const plotLoading = document.getElementById('plotLoading');
-    
-    if (!plotContainer || !plotLoading) return;
+    console.log('loadPlot called with plotType:', plotType);
+    try {
+        const plotContainer = document.getElementById('plotContainer');
+        const plotLoading = document.getElementById('plotLoading');
+        
+        if (!plotContainer || !plotLoading) {
+            console.error('plotContainer or plotLoading not found');
+            return;
+        }
     
     // Show loading indicator
     plotLoading.style.display = 'block';
@@ -883,7 +1055,7 @@ function loadPlot(plotType) {
                     <div class="text-center text-danger">
                         <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
                         <p>Error loading plot: ${data.error}</p>
-                        <small class="text-muted">Make sure your simulation has completed successfully.</small>
+                        <small class="text-dark">Make sure your simulation has completed successfully.</small>
                     </div>
                 `;
                 plotContainer.style.display = 'block';
@@ -902,6 +1074,10 @@ function loadPlot(plotType) {
         .finally(() => {
             plotLoading.style.display = 'none';
         });
+    } catch (error) {
+        console.error('Error in loadPlot:', error);
+    }
 }
 
-
+// Make clearAIChat function globally accessible for testing
+window.clearAIChat = clearAIChat;

@@ -38,7 +38,7 @@
                                     <option value="daily">Daily Trading (1 day intervals)</option>
                                     <option value="intraday">Intraday Trading (60-minute intervals)</option>
                                 </select>
-                                <small class="text-muted" id="frequencyHelp">Daily: up to 365 days | Intraday: up to 60 days (6 intervals per day)</small>
+                                <small class="text-dark" id="frequencyHelp">Daily: up to 365 days | Intraday: up to 60 days (6 intervals per day)</small>
                             </div>
                             
                             <!-- Beta Hedge -->
@@ -48,12 +48,15 @@
                                     <label class="form-check-label" for="betaHedgeEnabled">
                                         <strong>Beta Hedge</strong>
                                         <i class="fas fa-info-circle" data-bs-toggle="tooltip" data-bs-placement="top" 
-                                           title="Automatically hedge portfolio by shorting VOO when beta > 0 to maintain market neutrality"></i>
+                                           title="Automatically hedge portfolio: short VOO when beta > 0, buy VOO on margin when beta < 0 to maintain market neutrality"></i>
                                     </label>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">Shorts VOO to hedge positive beta exposure</small>
-                                    <small class="text-info" id="hedgeMarginBalance">Hedge Margin: $0.00</small>
+                                    <small class="text-dark">Shorts/buys VOO to hedge both positive and negative beta exposure</small>
+                                    <small class="text-info" id="hedgeMarginBalance">
+                                        <span class="me-2">Hedge Margin:</span>
+                                        <span>$0.00</span>
+                                    </small>
                                 </div>
                             </div>
 
@@ -172,12 +175,12 @@
                                         <div class="spinner-border spinner-border-sm text-primary" role="status">
                                             <span class="visually-hidden">Loading plot...</span>
                                         </div>
-                                        <small class="text-muted">Loading...</small>
+                                        <small class="text-dark">Loading...</small>
                                     </div>
                                     
                                     <!-- Plot Container -->
                                     <div id="plotContainer">
-                                        <div class="text-center text-muted">
+                                        <div class="text-center text-dark">
                                             <i class="fas fa-chart-area fa-2x mb-2"></i>
                                             <p class="small">Run simulation to see charts</p>
                                         </div>
@@ -219,7 +222,7 @@
                     </div>
                     <div class="card-body">
                         <div id="resultsContainer">
-                            <div class="text-center text-muted">
+                            <div class="text-center text-dark">
                                 <i class="fas fa-chart-line fa-3x mb-3"></i>
                                 <p>Configure your portfolio and start a simulation to see results here.</p>
                             </div>
@@ -241,11 +244,16 @@
 
                 <!-- AI Advisor Chat -->
                 <div class="card mt-3" id="aiAdvisorCard" style="display: none;">
-                    <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="card-header d-flex justify-content-between align-items-center text-dark">
                         <h5><i class="fas fa-robot"></i> AI Portfolio Advisor</h5>
-                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#aiChatCollapse">
-                            <i class="fas fa-comments"></i> Chat
-                        </button>
+                        <div class="btn-group text-dark"" role="group">
+                            <button class="btn btn-sm btn-outline-secondary text-dark"" type="button" data-bs-toggle="collapse" data-bs-target="#aiChatCollapse">
+                                <i class="fas fa-comments text-dark""></i> Chat
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" type="button" id="clearChatBtn" title="Clear chat history">
+                                <i class="fas fa-trash"></i> Clear
+                            </button>
+                        </div>
                     </div>
                     <div class="collapse" id="aiChatCollapse">
                         <div class="card-body">
@@ -278,12 +286,12 @@
                                         <i class="fas fa-paper-plane"></i>
                                     </button>
                                 </div>
-                                <small class="text-muted">Press Enter to send, Shift+Enter for new line</small>
+                                <small class="text-dark">Press Enter to send, Shift+Enter for new line</small>
                             </div>
                             
                             <!-- Quick Questions -->
                             <div class="quick-questions mt-3">
-                                <small class="text-muted">Quick questions:</small>
+                                <small class="text-dark">Quick questions:</small>
                                 <div class="d-flex flex-wrap gap-2 mt-1">
                                     <button class="btn btn-sm btn-outline-primary quick-question-btn" data-question="How is my portfolio performing?">
                                         Performance Analysis
@@ -306,7 +314,7 @@
                                     <a href="https://www.cerebras.ai" target="_blank" rel="noopener noreferrer" class="cerebras-logo-link">
                                         <img src="{{ url_for('static', filename='cerebras_logo.png') }}" alt="Cerebras Logo" class="cerebras-logo mb-2" width="60" height="60">
                                     </a>
-                                    <small class="text-muted">
+                                    <small class="text-dark">
                                         Powered by 
                                         <a href="https://www.cerebras.ai" target="_blank" rel="noopener noreferrer" class="cerebras-branding-link">
                                             <strong class="cerebras-branding">Cerebras</strong>
