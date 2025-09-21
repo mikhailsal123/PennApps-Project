@@ -108,7 +108,7 @@ class Portfolio:
         else:
             print(f"Not enough shares to sell {shares} of {ticker}")
 
-    def plot_portfolio_value(self, title="Portfolio Value Over Time", save_path=None, show_percentage=False):
+    def plot_portfolio_value(self, title="Portfolio Value Over Time", save_path=None, show_percentage=False, show_plot=True):
         """
         Plot the portfolio value changes over time.
         Shows constant values during market closures.
@@ -134,11 +134,22 @@ class Portfolio:
         else:
             ylabel = 'Portfolio Value ($)'
         
-        # Create the plot
-        plt.figure(figsize=(12, 6))
+        # Determine plot styling based on data size
+        num_points = len(timestamps)
         
-        # Plot the main line
-        plt.plot(timestamps, values, marker='o', linewidth=2, markersize=4, color='blue', label='Portfolio Value')
+        # Create the plot with appropriate size
+        plt.figure(figsize=(14, 8))
+        
+        # Adaptive plotting based on data size
+        if num_points <= 30:
+            # Small dataset: show markers and full detail
+            plt.plot(timestamps, values, marker='o', linewidth=2, markersize=4, color='blue', label='Portfolio Value')
+        elif num_points <= 100:
+            # Medium dataset: show markers but smaller
+            plt.plot(timestamps, values, marker='o', linewidth=1.5, markersize=2, color='blue', label='Portfolio Value')
+        else:
+            # Large dataset: no markers, just line
+            plt.plot(timestamps, values, linewidth=2, color='blue', label='Portfolio Value')
         
         # Identify and highlight constant value periods (market closures)
         constant_periods = []
@@ -178,10 +189,28 @@ class Portfolio:
         plt.grid(True, alpha=0.3)
         plt.legend()
         
-        # Format x-axis dates
-        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))
-        plt.xticks(rotation=45)
+        # Adaptive x-axis formatting based on data size
+        if num_points <= 30:
+            # Small dataset: show all dates
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+            plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))
+            plt.xticks(rotation=45)
+        elif num_points <= 100:
+            # Medium dataset: show every few dates
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+            plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=3))
+            plt.xticks(rotation=45)
+        else:
+            # Large dataset: show weekly/monthly intervals
+            if num_points <= 365:
+                # Daily data: show weekly intervals
+                plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+                plt.gca().xaxis.set_major_locator(mdates.WeekdayLocator(interval=1))
+            else:
+                # More than a year: show monthly intervals
+                plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+                plt.gca().xaxis.set_major_locator(mdates.MonthLocator(interval=1))
+            plt.xticks(rotation=45)
         
         # Format y-axis based on display type
         if show_percentage:
@@ -217,9 +246,10 @@ class Portfolio:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
             print(f"Plot saved to {save_path}")
         
-        plt.show()
+        if show_plot:
+            plt.show()
 
-    def plot_pnl(self, title="Portfolio P&L Over Time", save_path=None):
+    def plot_pnl(self, title="Portfolio P&L Over Time", save_path=None, show_plot=True):
         """
         Plot the portfolio profit and loss over time.
         
@@ -235,12 +265,25 @@ class Portfolio:
         timestamps = sorted(self.change_over_time.keys())
         pnl_values = [self.change_over_time[ts] - self.original_value for ts in timestamps]
         
-        # Create the plot
-        plt.figure(figsize=(12, 6))
+        # Determine plot styling based on data size
+        num_points = len(timestamps)
         
-        # Use different colors for profit/loss
-        colors = ['green' if pnl >= 0 else 'red' for pnl in pnl_values]
-        plt.bar(range(len(timestamps)), pnl_values, color=colors, alpha=0.7)
+        # Create the plot with appropriate size
+        plt.figure(figsize=(14, 8))
+        
+        # Adaptive plotting based on data size
+        if num_points <= 50:
+            # Small dataset: use bars with different colors for profit/loss
+            colors = ['green' if pnl >= 0 else 'red' for pnl in pnl_values]
+            plt.bar(range(len(timestamps)), pnl_values, color=colors, alpha=0.7, width=0.8)
+        else:
+            # Large dataset: use line plot to avoid overcrowding
+            colors = ['green' if pnl >= 0 else 'red' for pnl in pnl_values]
+            plt.plot(range(len(timestamps)), pnl_values, linewidth=2, color='blue', alpha=0.8)
+            # Add colored area under the line
+            plt.fill_between(range(len(timestamps)), pnl_values, 0, 
+                           color=[('green' if pnl >= 0 else 'red') for pnl in pnl_values], 
+                           alpha=0.3)
         
         # Add horizontal line at zero
         plt.axhline(y=0, color='black', linestyle='-', alpha=0.5)
@@ -251,8 +294,22 @@ class Portfolio:
         plt.ylabel('Profit/Loss ($)', fontsize=12)
         plt.grid(True, alpha=0.3)
         
-        # Set x-axis labels
-        plt.xticks(range(len(timestamps)), [ts.strftime('%m/%d %H:%M') for ts in timestamps], rotation=45)
+        # Adaptive x-axis labels based on data size
+        if num_points <= 20:
+            # Small dataset: show all labels
+            plt.xticks(range(len(timestamps)), [ts.strftime('%m/%d %H:%M') for ts in timestamps], rotation=45)
+        elif num_points <= 100:
+            # Medium dataset: show every few labels
+            step = max(1, num_points // 10)
+            tick_positions = range(0, len(timestamps), step)
+            tick_labels = [timestamps[i].strftime('%m/%d') for i in tick_positions]
+            plt.xticks(tick_positions, tick_labels, rotation=45)
+        else:
+            # Large dataset: show fewer labels
+            step = max(1, num_points // 8)
+            tick_positions = range(0, len(timestamps), step)
+            tick_labels = [timestamps[i].strftime('%m/%d') for i in tick_positions]
+            plt.xticks(tick_positions, tick_labels, rotation=45)
         
         # Format y-axis as currency
         plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
@@ -264,7 +321,8 @@ class Portfolio:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
             print(f"Plot saved to {save_path}")
         
-        plt.show()
+        if show_plot:
+            plt.show()
 
     def calculate_sharpe_ratio(self, risk_free_rate=0.02, period='daily'):
         """
@@ -438,6 +496,127 @@ class Portfolio:
         }
         
         return summary
+
+    def calculate_portfolio_beta(self, benchmark_ticker='^GSPC', risk_free_rate=0.02):
+        """Calculate the portfolio's beta relative to a benchmark (default: S&P 500).
+        
+        Beta measures the portfolio's sensitivity to market movements:
+        - Beta = 1.0: Moves with the market
+        - Beta > 1.0: More volatile than the market (higher risk/reward)
+        - Beta < 1.0: Less volatile than the market (lower risk/reward)
+        - Beta = 0: No correlation with the market (cash-like)
+        
+        Args:
+            benchmark_ticker (str): Benchmark ticker symbol (default: ^GSPC for S&P 500)
+            risk_free_rate (float): Annual risk-free rate (default 2% = 0.02)
+        
+        Returns:
+            dict: Dictionary containing beta calculation results and details
+        """
+        
+        if len(self.change_over_time) < 3:
+            print("Insufficient data for beta calculation. Need at least 3 data points.")
+            return None
+        
+        try:
+            # Get portfolio data
+            timestamps = sorted(self.change_over_time.keys())
+            portfolio_values = [self.change_over_time[ts] for ts in timestamps]
+            
+            # Get benchmark data with extended period to ensure we have enough data
+            benchmark_start = (timestamps[0] - timedelta(days=5)).strftime('%Y-%m-%d')
+            benchmark_end = (timestamps[-1] + timedelta(days=5)).strftime('%Y-%m-%d')
+            
+            benchmark_data = StockData(benchmark_ticker, benchmark_start, benchmark_end)
+            
+            if benchmark_data.stock_data.empty:
+                print(f"Could not retrieve benchmark data for {benchmark_ticker}")
+                return None
+            
+            # Align portfolio and benchmark data by matching available trading days
+            aligned_portfolio_returns = []
+            aligned_benchmark_returns = []
+            
+            for i in range(1, len(timestamps)):
+                # Get portfolio return for this period
+                portfolio_return = (portfolio_values[i] - portfolio_values[i-1]) / portfolio_values[i-1]
+                
+                # Try to get benchmark prices for both dates
+                benchmark_data.curtime = timestamps[i-1]
+                price_start = benchmark_data.get_price()
+                
+                benchmark_data.curtime = timestamps[i]
+                price_end = benchmark_data.get_price()
+                
+                # Only include if we have valid benchmark data for both dates
+                if price_start is not None and price_end is not None and price_start > 0:
+                    benchmark_return = (price_end - price_start) / price_start
+                    aligned_portfolio_returns.append(portfolio_return)
+                    aligned_benchmark_returns.append(benchmark_return)
+            
+            # Need at least 3 data points for meaningful beta calculation
+            if len(aligned_portfolio_returns) < 3:
+                print(f"Insufficient aligned data points: {len(aligned_portfolio_returns)} (need at least 3)")
+                return None
+            
+            # Convert to numpy arrays
+            portfolio_returns = np.array(aligned_portfolio_returns)
+            benchmark_returns = np.array(aligned_benchmark_returns)
+            
+            # Calculate covariance and variance
+            covariance = np.cov(portfolio_returns, benchmark_returns)[0, 1]
+            benchmark_variance = np.var(benchmark_returns)
+            
+            # Beta = Covariance(Portfolio, Benchmark) / Variance(Benchmark)
+            if benchmark_variance == 0:
+                print("Benchmark variance is zero - cannot calculate beta")
+                return None
+            
+            beta = covariance / benchmark_variance
+            
+            # Calculate correlation coefficient
+            if len(portfolio_returns) > 1 and np.std(portfolio_returns) > 0 and np.std(benchmark_returns) > 0:
+                correlation = np.corrcoef(portfolio_returns, benchmark_returns)[0, 1]
+                if np.isnan(correlation):
+                    correlation = 0.0
+            else:
+                correlation = 0.0
+            
+            # Calculate R-squared (coefficient of determination)
+            r_squared = correlation ** 2
+            
+            # Interpret beta with more nuanced ranges
+            if beta > 1.5:
+                beta_interpretation = "Very high beta - Portfolio is significantly more volatile than the market"
+            elif beta > 1.2:
+                beta_interpretation = "High beta - Portfolio is more volatile than the market"
+            elif beta > 0.8:
+                beta_interpretation = "Moderate beta - Portfolio moves roughly with the market"
+            elif beta > 0.3:
+                beta_interpretation = "Low beta - Portfolio is less volatile than the market"
+            elif beta > -0.3:
+                beta_interpretation = "Very low beta - Portfolio shows little correlation with the market"
+            else:
+                beta_interpretation = "Negative beta - Portfolio moves opposite to the market"
+            
+            result = {
+                'beta': round(beta, 3),
+                'correlation': round(correlation, 3),
+                'r_squared': round(r_squared, 3),
+                'benchmark_ticker': benchmark_ticker,
+                'data_points': len(aligned_portfolio_returns),
+                'interpretation': beta_interpretation,
+                'portfolio_volatility': round(np.std(portfolio_returns) * np.sqrt(252), 3),  # Annualized
+                'benchmark_volatility': round(np.std(benchmark_returns) * np.sqrt(252), 3)  # Annualized
+            }
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error calculating portfolio beta: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
 
 def main():
     A = Portfolio(100000, "60d", "2m")

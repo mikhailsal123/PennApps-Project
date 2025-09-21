@@ -39,12 +39,22 @@ class StockData:
         if start_date == end_date:
             print("Error: End date is the same as start date")
     
+        print(f"DEBUG: Fetching {interval} data for {stock_symbol} from {start_date} to {end_date}")
         stock = yf.Ticker(stock_symbol)
         self.stock_data = stock.history(start=start_date, end=end_date, interval=interval)
         
+        # If no data for intraday interval, try daily data as fallback
+        if self.stock_data.empty and interval in ['60m', '30m', '15m', '5m', '1m']:
+            print(f"DEBUG: No {interval} data available, trying daily data as fallback")
+            self.stock_data = stock.history(start=start_date, end=end_date, interval='1d')
+            if not self.stock_data.empty:
+                print(f"DEBUG: Got {len(self.stock_data)} daily data points as fallback for {stock_symbol}")
+        
         if self.stock_data.empty:
+            print(f"DEBUG: No data returned for {stock_symbol} with interval {interval}")
             self.stock_error_message(stock_symbol, start_date)
         else:
+            print(f"DEBUG: Got {len(self.stock_data)} data points for {stock_symbol}")
             self.stock_data.index = self.stock_data.index.tz_localize(None)
             self.curtime = self.stock_data.index[0]
         
@@ -99,8 +109,42 @@ class StockData:
             mid_price = (float(self.stock_data.loc[time, "High"]) + float(self.stock_data.loc[time, "Low"]))/2
             return mid_price
         else:
-            #print("Market is not open at this time")
-            pass
+            # Try to find the closest available timestamp
+            available_times = self.stock_data.index
+            if len(available_times) == 0:
+                print(f"DEBUG: No stock data available for {self.ticker}")
+                return None
+            
+            # Debug: Print available times for first few calls
+            if not hasattr(self, '_debug_printed'):
+                print(f"DEBUG: Available times for {self.ticker}: {available_times[:5].tolist()}...")
+                print(f"DEBUG: Requested time: {time}")
+                self._debug_printed = True
+            
+            # Find the closest time (within reasonable range)
+            time_diff = abs(available_times - time)
+            closest_idx = time_diff.argmin()
+            closest_time = available_times[closest_idx]
+            
+            # Only use closest time if it's within 2 hours (for intraday) or 1 day (for daily)
+            # Check if this is intraday data by looking at the time difference between consecutive points
+            if len(available_times) > 1:
+                time_gap = available_times[1] - available_times[0]
+                is_intraday = time_gap <= timedelta(hours=1)
+            else:
+                is_intraday = True  # Assume intraday if we can't determine
+            
+            max_diff = timedelta(hours=2) if is_intraday else timedelta(days=1)
+            if abs(closest_time - time) <= max_diff:
+                mid_price = (float(self.stock_data.loc[closest_time, "High"]) + float(self.stock_data.loc[closest_time, "Low"]))/2
+                # Debug: print when we're using closest time
+                if abs(closest_time - time) > timedelta(minutes=5):  # Only print if significant difference
+                    print(f"Using closest available time {closest_time} for requested time {time} (diff: {abs(closest_time - time)})")
+                return mid_price
+            else:
+                # Market is truly closed (no data within reasonable range)
+                print(f"No data available within {max_diff} of requested time {time} for {self.ticker}")
+                return None
     
     def moving_average(self, window='1h'):
         self.stock_data["SMA"] = self.stock_data['Close'].rolling(window=window).mean()

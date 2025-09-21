@@ -1,5 +1,6 @@
 let currentSimulationId = null;
 let statusInterval = null;
+let aiChatVisible = false;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -7,12 +8,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const durationSlider = document.getElementById('durationDays');
     const durationValue = document.getElementById('durationValue');
     
-    durationSlider.addEventListener('input', function() {
-        durationValue.textContent = this.value;
-    });
+    if (durationSlider && durationValue) {
+        durationSlider.addEventListener('input', function() {
+            durationValue.textContent = this.value;
+        });
+    }
     
     // Form submission
-    document.getElementById('simulationForm').addEventListener('submit', startSimulation);
+    const simulationForm = document.getElementById('simulationForm');
+    if (simulationForm) {
+        simulationForm.addEventListener('submit', startSimulation);
+    }
     
     // Stop button
     document.getElementById('stopBtn').addEventListener('click', stopSimulation);
@@ -22,14 +28,46 @@ document.addEventListener('DOMContentLoaded', function() {
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+    
+    // Initialize AI chat functionality
+    initializeAIChat();
+    
+    // Set initial welcome time
+    const welcomeTime = document.getElementById('aiWelcomeTime');
+    if (welcomeTime) {
+        welcomeTime.textContent = new Date().toLocaleTimeString();
+    }
+    
+    // Set a test simulation ID for immediate AI testing
+    currentSimulationId = 'test-simulation-123';
+    
+    // Initialize duration limits
+    updateDurationLimits();
+    
+    // Plot type buttons
+    document.querySelectorAll('[data-plot-type]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const plotType = this.getAttribute('data-plot-type');
+            loadPlot(plotType);
+        });
+    });
+    
+    // Show AI advisor immediately for testing
+    setTimeout(() => {
+        showAIAdvisor();
+    }, 500);
+    
 });
 
 function startSimulation(e) {
     e.preventDefault();
+    console.log('startSimulation called');
     
     const formData = collectFormData();
+    console.log('Form data collected:', formData);
     
     if (!validateForm(formData)) {
+        console.log('Form validation failed');
         return;
     }
     
@@ -235,6 +273,23 @@ function showFinalResults(data) {
                     <div class="metric-label">Sharpe Ratio</div>
                 </div>
             </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value">
+                        ${data.final_metrics.beta ? data.final_metrics.beta.toFixed(3) : 'N/A'}
+                    </div>
+                    <div class="metric-label">Beta</div>
+                    ${data.final_metrics.beta_interpretation ? `<div class="metric-subtitle">${data.final_metrics.beta_interpretation}</div>` : ''}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value">
+                        ${data.final_metrics.correlation ? data.final_metrics.correlation.toFixed(3) : 'N/A'}
+                    </div>
+                    <div class="metric-label">Market Correlation</div>
+                </div>
+            </div>
         `;
         
         finalMetricsCard.style.display = 'block';
@@ -249,11 +304,11 @@ function collectFormData() {
     const tickers = [];
     const tickerInputs = document.querySelectorAll('#tickersContainer .ticker-input');
     
-    tickerInputs.forEach(input => {
+    tickerInputs.forEach((input, index) => {
         const tickerInput = input.querySelector('input[type="text"]');
         const sharesInput = input.querySelector('input[type="number"]');
         
-        if (tickerInput.value.trim() && sharesInput.value) {
+        if (tickerInput && tickerInput.value.trim() && sharesInput && sharesInput.value) {
             tickers.push({
                 ticker: tickerInput.value.trim().toUpperCase(),
                 shares: parseInt(sharesInput.value)
@@ -264,16 +319,24 @@ function collectFormData() {
     const tradingRules = [];
     const ruleInputs = document.querySelectorAll('#tradingRulesContainer .trading-rule');
     
-    ruleInputs.forEach(input => {
-        const tickerSelect = input.querySelector('select:first-child');
+    ruleInputs.forEach((input, index) => {
+        const tickerInput = input.querySelector('.ticker-input');
         const actionSelect = input.querySelector('.action-select');
         const conditionSelect = input.querySelector('select:last-of-type');
         const thresholdInput = input.querySelector('input[type="number"]:first-of-type');
         const sharesInput = input.querySelector('input[type="number"]:last-of-type');
         
-        if (tickerSelect.value && actionSelect.value && conditionSelect.value && thresholdInput.value && sharesInput.value) {
+        console.log(`Rule ${index}:`, {
+            ticker: tickerInput?.value,
+            action: actionSelect?.value,
+            condition: conditionSelect?.value,
+            threshold: thresholdInput?.value,
+            shares: sharesInput?.value
+        });
+        
+        if (tickerInput && tickerInput.value.trim() && actionSelect.value && conditionSelect.value && thresholdInput.value && sharesInput.value) {
             tradingRules.push({
-                ticker: tickerSelect.value,
+                ticker: tickerInput.value.toUpperCase().trim(),
                 action: actionSelect.value,
                 condition: conditionSelect.value,
                 threshold: parseFloat(thresholdInput.value),
@@ -282,7 +345,7 @@ function collectFormData() {
         }
     });
     
-    return {
+    const formData = {
         initial_cash: parseFloat(document.getElementById('initialCash').value),
         start_date: document.getElementById('startDate').value,
         duration_days: parseInt(document.getElementById('durationDays').value),
@@ -290,6 +353,8 @@ function collectFormData() {
         tickers: tickers,
         trading_rules: tradingRules
     };
+    
+    return formData;
 }
 
 function validateForm(data) {
@@ -337,7 +402,7 @@ function addTicker() {
     tickerInput.className = 'ticker-input mb-2';
     tickerInput.innerHTML = `
         <div class="input-group">
-            <input type="text" class="form-control" placeholder="Ticker (e.g., AAPL)">
+            <input type="text" class="form-control" placeholder="Ticker (e.g., AAPL)" maxlength="10" style="text-transform: uppercase;" oninput="validateTicker(this)">
             <input type="number" class="form-control" placeholder="Shares" value="100" min="1">
             <button type="button" class="btn btn-outline-danger" onclick="removeTicker(this)">
                 <i class="fas fa-trash"></i>
@@ -345,6 +410,7 @@ function addTicker() {
         </div>
     `;
     container.appendChild(tickerInput);
+    
 }
 
 function removeTicker(button) {
@@ -357,11 +423,7 @@ function addTradingRule() {
     ruleInput.className = 'trading-rule mb-2';
     ruleInput.innerHTML = `
         <div class="input-group">
-            <select class="form-select">
-                <option value="NVDA">NVDA</option>
-                <option value="AMZN">AMZN</option>
-                <option value="GOOG">GOOG</option>
-            </select>
+            <input type="text" class="form-control ticker-input" placeholder="Ticker (e.g., AAPL, TSLA)" value="NVDA" maxlength="10" style="text-transform: uppercase;" oninput="validateTicker(this)">
             <select class="form-select action-select">
                 <option value="sell">Sell</option>
                 <option value="buy">Buy</option>
@@ -380,6 +442,26 @@ function addTradingRule() {
     container.appendChild(ruleInput);
 }
 
+
+function validateTicker(input) {
+    const ticker = input.value.toUpperCase().trim();
+    const isValid = /^[A-Z0-9.]{1,10}$/.test(ticker) && ticker.length >= 1;
+    
+    // Remove existing validation classes
+    input.classList.remove('is-valid', 'is-invalid');
+    
+    if (ticker.length === 0) {
+        // No validation styling for empty input
+        return;
+    } else if (isValid) {
+        input.classList.add('is-valid');
+        input.title = `Valid ticker symbol: ${ticker}`;
+    } else {
+        input.classList.add('is-invalid');
+        input.title = 'Invalid ticker format. Use 1-10 uppercase letters/numbers (e.g., AAPL, TSLA, BRK.A)';
+    }
+}
+
 function removeTradingRule(button) {
     button.closest('.trading-rule').remove();
 }
@@ -390,15 +472,17 @@ function updateDurationLimits() {
     const durationUnit = document.getElementById('durationUnit');
     const minDuration = document.getElementById('minDuration');
     const maxDuration = document.getElementById('maxDuration');
+    const durationMidpoint = document.getElementById('durationMidpoint');
     const frequencyHelp = document.getElementById('frequencyHelp');
     
     if (tradingFrequency === 'intraday') {
-        // Intraday: 30-minute intervals, max 60 days
+        // Intraday: 60-minute intervals, max 60 days
         durationSlider.max = 60;
         durationUnit.textContent = 'days';
         minDuration.textContent = '1 day';
         maxDuration.textContent = '60 days';
-        frequencyHelp.textContent = 'Intraday: 30-minute intervals, up to 60 days (13 trades per day)';
+        durationMidpoint.textContent = '30';
+        frequencyHelp.textContent = 'Intraday: 60-minute intervals, up to 60 days (6 intervals per day)';
         if (parseInt(durationSlider.value) > 60) {
             durationSlider.value = 60;
             document.getElementById('durationValue').textContent = '60';
@@ -409,6 +493,272 @@ function updateDurationLimits() {
         durationUnit.textContent = 'days';
         minDuration.textContent = '1 day';
         maxDuration.textContent = '365 days';
+        durationMidpoint.textContent = '183';
         frequencyHelp.textContent = 'Daily: 1-day intervals, up to 365 days (1 trade per day)';
     }
 }
+
+// AI Chat Functions
+function initializeAIChat() {
+    // Chat input and send button
+    const chatInput = document.getElementById('aiChatInput');
+    const sendBtn = document.getElementById('aiSendBtn');
+    
+    if (chatInput && sendBtn) {
+        sendBtn.addEventListener('click', sendAIMessage);
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendAIMessage();
+            }
+        });
+    }
+    
+    // Quick question buttons
+    const quickQuestionBtns = document.querySelectorAll('.quick-question-btn');
+    quickQuestionBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const question = this.getAttribute('data-question');
+            if (question) {
+                document.getElementById('aiChatInput').value = question;
+                sendAIMessage();
+            }
+        });
+    });
+}
+
+function showAIAdvisor() {
+    console.log('showAIAdvisor called, currentSimulationId:', currentSimulationId);
+    const aiAdvisorCard = document.getElementById('aiAdvisorCard');
+    if (aiAdvisorCard && currentSimulationId) {
+        console.log('Showing AI advisor card');
+        aiAdvisorCard.style.display = 'block';
+        
+        // Auto-expand chat if not visible
+        if (!aiChatVisible) {
+            const chatCollapse = document.getElementById('aiChatCollapse');
+            if (chatCollapse && !chatCollapse.classList.contains('show')) {
+                const collapseInstance = new bootstrap.Collapse(chatCollapse, {show: true});
+                aiChatVisible = true;
+            }
+        }
+    } else {
+        console.log('AI advisor card not found or no simulation ID');
+    }
+}
+
+function sendAIMessage() {
+    const chatInput = document.getElementById('aiChatInput');
+    const message = chatInput.value.trim();
+    
+    if (!message) return;
+    
+    console.log('sendAIMessage called, currentSimulationId:', currentSimulationId);
+    
+    // Add user message
+    addMessage('user', message);
+    chatInput.value = '';
+    
+    // Show typing indicator
+    showTypingIndicator();
+    
+    // Send to AI - use currentSimulationId if available, otherwise let AI use global portfolio state
+    const requestBody = {
+        question: message
+    };
+    
+    // Only include simulation_id if we have one and it's not the test simulation
+    if (currentSimulationId && currentSimulationId !== 'test-simulation-123') {
+        requestBody.simulation_id = currentSimulationId;
+    }
+    
+    // Send to AI
+    fetch('/ai_analysis', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideTypingIndicator();
+        
+        console.log('AI Response received:', data);
+        console.log('Analysis content:', data.analysis);
+        
+        if (data.success) {
+            addMessage('ai', data.analysis);
+        } else {
+            addMessage('ai', `Sorry, I encountered an error: ${data.error || 'Unknown error'}`);
+        }
+    })
+    .catch(error => {
+        hideTypingIndicator();
+        addMessage('ai', `Sorry, I couldn't process your request. Please check your internet connection and try again.`);
+        console.error('AI Chat Error:', error);
+    });
+}
+
+function addMessage(sender, text) {
+    console.log('addMessage called:', sender, text);
+    const chatMessages = document.getElementById('aiChatMessages');
+    if (!chatMessages) {
+        console.log('chatMessages element not found');
+        return;
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+    
+    const time = new Date().toLocaleTimeString();
+    const icon = sender === 'ai' ? 'fas fa-robot' : 'fas fa-user';
+    
+    messageDiv.innerHTML = `
+        <div class="message-content">
+            <i class="${icon}"></i>
+            <div class="message-text">${formatMessage(text)}</div>
+        </div>
+        <div class="message-time">${time}</div>
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function formatMessage(text) {
+    // Convert line breaks to HTML
+    text = text.replace(/\n/g, '<br>');
+    
+    // Format bullet points
+    text = text.replace(/\n- /g, '<br>• ');
+    text = text.replace(/^- /g, '• ');
+    
+    // Format numbered lists
+    text = text.replace(/\n(\d+)\. /g, '<br>$1. ');
+    text = text.replace(/^(\d+)\. /g, '$1. ');
+    
+    return text;
+}
+
+function showTypingIndicator() {
+    const chatMessages = document.getElementById('aiChatMessages');
+    if (!chatMessages) return;
+    
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'ai-typing';
+    typingDiv.id = 'typingIndicator';
+    typingDiv.innerHTML = `
+        <i class="fas fa-robot"></i>
+        <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(typingDiv);
+    typingDiv.style.display = 'flex';
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+}
+
+// Override the existing updateResults function to show AI advisor and plots
+const originalUpdateResults = updateResults;
+updateResults = function(data) {
+    console.log('updateResults override called with data:', data);
+    originalUpdateResults(data);
+    
+    // Show AI advisor and plots when simulation is complete
+    if (data.is_complete && !data.error && currentSimulationId) {
+        console.log('Simulation complete, showing AI advisor and plots...');
+        setTimeout(() => {
+            showAIAdvisor();
+            showPlotsCard();
+        }, 1000); // Small delay to let results display first
+    }
+};
+
+// Portfolio Plot Functions
+function showPlotsCard() {
+    console.log('showPlotsCard called');
+    const plotsCard = document.getElementById('plotsCard');
+    console.log('plotsCard element:', plotsCard);
+    if (plotsCard) {
+        plotsCard.style.display = 'block';
+        plotsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Load the default plot (portfolio value)
+        console.log('Loading default plot...');
+        loadPlot('value');
+    } else {
+        console.error('plotsCard element not found!');
+    }
+}
+
+function loadPlot(plotType) {
+    const plotContainer = document.getElementById('plotContainer');
+    const plotLoading = document.getElementById('plotLoading');
+    
+    if (!plotContainer || !plotLoading) return;
+    
+    // Show loading indicator
+    plotLoading.style.display = 'block';
+    plotContainer.style.display = 'none';
+    
+    // Update button states
+    document.querySelectorAll('[data-plot-type]').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-plot-type="${plotType}"]`).classList.add('active');
+    
+    // Determine which endpoint to use
+    let plotUrl;
+    if (currentSimulationId && currentSimulationId !== 'test-simulation-123') {
+        plotUrl = `/plot/${currentSimulationId}/${plotType}`;
+    } else {
+        plotUrl = `/plot/current/${plotType}`;
+    }
+    
+    // Fetch the plot
+    fetch(plotUrl)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Display the plot
+                plotContainer.innerHTML = `<img src="${data.image}" alt="${plotType} plot" class="img-fluid">`;
+                plotContainer.style.display = 'block';
+            } else {
+                // Show error message
+                plotContainer.innerHTML = `
+                    <div class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <p>Error loading plot: ${data.error}</p>
+                        <small class="text-muted">Make sure your simulation has completed successfully.</small>
+                    </div>
+                `;
+                plotContainer.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading plot:', error);
+            plotContainer.innerHTML = `
+                <div class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>Failed to load plot. Please try again.</p>
+                </div>
+            `;
+            plotContainer.style.display = 'block';
+        })
+        .finally(() => {
+            plotLoading.style.display = 'none';
+        });
+}
+
+
