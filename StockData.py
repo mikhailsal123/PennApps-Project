@@ -26,12 +26,13 @@ class StockData:
         print("- The stock symbol is invalid")
 
     # get stock data in a range (per day basis)
-    def get_stock_data(self, stock_symbol, start_date, end_date):
+    def get_stock_data(self, stock_symbol, start_date, end_date, interval='1d'):
         """Get stock data for a given symbol and date range.
         Args:
             stock_symbol: Stock ticker symbol (e.g., 'AAPL')
             start_date: Start date in 'YYYY-MM-DD' format
             end_date: End date in 'YYYY-MM-DD' format
+            interval: Data interval ('1d' for daily, '30m' for 30-minute)
         Returns:
             pandas.DataFrame: Stock data or empty DataFrame if no data found"""
 
@@ -39,7 +40,7 @@ class StockData:
             print("Error: End date is the same as start date")
     
         stock = yf.Ticker(stock_symbol)
-        self.stock_data = stock.history(start=start_date, end=end_date)
+        self.stock_data = stock.history(start=start_date, end=end_date, interval=interval)
         
         if self.stock_data.empty:
             self.stock_error_message(stock_symbol, start_date)
@@ -98,7 +99,8 @@ class StockData:
             mid_price = (float(self.stock_data.loc[time, "High"]) + float(self.stock_data.loc[time, "Low"]))/2
             return mid_price
         else:
-            print("Market is not open at this time")
+            #print("Market is not open at this time")
+            pass
     
     def moving_average(self, window='1h'):
         self.stock_data["SMA"] = self.stock_data['Close'].rolling(window=window).mean()

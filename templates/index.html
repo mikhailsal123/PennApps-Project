@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Simulator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-4 sidebar">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-line"></i> Portfolio Simulator</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="simulationForm">
+                            <!-- Initial Cash -->
+                            <div class="mb-3">
+                                <label for="initialCash" class="form-label">Initial Cash ($)</label>
+                                <input type="number" class="form-control" id="initialCash" value="100000" min="1000" step="1000">
+                            </div>
+
+                            <!-- Start Date -->
+                            <div class="mb-3">
+                                <label for="startDate" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="startDate" value="2025-07-21">
+                            </div>
+
+                            <!-- Trading Frequency -->
+                            <div class="mb-3">
+                                <label class="form-label">Trading Frequency</label>
+                                <select class="form-select trading-frequency-select" id="tradingFrequency" onchange="updateDurationLimits()">
+                                    <option value="daily">Daily Trading (1 day intervals)</option>
+                                    <option value="intraday">Intraday Trading (30-minute intervals)</option>
+                                </select>
+                                <small class="text-muted" id="frequencyHelp">Daily: up to 365 days | Intraday: up to 60 days</small>
+                            </div>
+
+                            <!-- Duration -->
+                            <div class="mb-3">
+                                <label for="durationDays" class="form-label">Simulation Duration: <span id="durationValue">30</span> <span id="durationUnit">days</span></label>
+                                <input type="range" class="form-range" id="durationDays" min="1" max="60" value="30">
+                                <div class="d-flex justify-content-between">
+                                    <small id="minDuration">1 day</small>
+                                    <span id="durationValue">30</span>
+                                    <small id="maxDuration">60 days</small>
+                                </div>
+                            </div>
+
+                            <!-- Tickers -->
+                            <div class="mb-3">
+                                <label class="form-label">Stocks to Trade</label>
+                                <div id="tickersContainer">
+                                    <div class="ticker-input mb-2">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Ticker (e.g., AAPL)" value="NVDA">
+                                            <input type="number" class="form-control" placeholder="Shares" value="100" min="1">
+                                            <button type="button" class="btn btn-outline-danger" onclick="removeTicker(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="ticker-input mb-2">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Ticker (e.g., AAPL)" value="AMZN">
+                                            <input type="number" class="form-control" placeholder="Shares" value="120" min="1">
+                                            <button type="button" class="btn btn-outline-danger" onclick="removeTicker(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="ticker-input mb-2">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Ticker (e.g., AAPL)" value="GOOG">
+                                            <input type="number" class="form-control" placeholder="Shares" value="100" min="1">
+                                            <button type="button" class="btn btn-outline-danger" onclick="removeTicker(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addTicker()">
+                                    <i class="fas fa-plus"></i> Add Stock
+                                </button>
+                            </div>
+
+                            <!-- Trading Rules -->
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    Trading Rules
+                                    <i class="fas fa-info-circle" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                       title="Set automatic buy/sell rules based on price conditions. Buy rules require sufficient cash, sell rules require sufficient shares."></i>
+                                </label>
+                                <div id="tradingRulesContainer">
+                                    <div class="trading-rule mb-2">
+                                        <div class="input-group">
+                                            <select class="form-select">
+                                                <option value="NVDA">NVDA</option>
+                                                <option value="AMZN">AMZN</option>
+                                                <option value="GOOG">GOOG</option>
+                                            </select>
+                                            <select class="form-select action-select">
+                                                <option value="sell">Sell</option>
+                                                <option value="buy">Buy</option>
+                                            </select>
+                                            <select class="form-select">
+                                                <option value="greater_than">Price ></option>
+                                                <option value="less_than">Price <</option>
+                                            </select>
+                                            <input type="number" class="form-control" placeholder="Threshold" value="180" step="0.01">
+                                            <input type="number" class="form-control" placeholder="Shares" value="10" min="1">
+                                            <button type="button" class="btn btn-outline-danger" onclick="removeTradingRule(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addTradingRule()">
+                                    <i class="fas fa-plus"></i> Add Rule
+                                </button>
+                            </div>
+
+                            <!-- Control Buttons -->
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary" id="startBtn">
+                                    <i class="fas fa-play"></i> Start Simulation
+                                </button>
+                                <button type="button" class="btn btn-danger" id="stopBtn" style="display: none;">
+                                    <i class="fas fa-stop"></i> Stop Simulation
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-8">
+                <!-- Progress Bar -->
+                <div class="card mb-3" id="progressCard" style="display: none;">
+                    <div class="card-body">
+                        <h5>Simulation Progress</h5>
+                        <div class="progress mb-2">
+                            <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small id="progressText">Starting simulation...</small>
+                    </div>
+                </div>
+
+                <!-- Results Display -->
+                <div class="card">
+                    <div class="card-header">
+                        <h4><i class="fas fa-chart-bar"></i> Simulation Results</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultsContainer">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-chart-line fa-3x mb-3"></i>
+                                <p>Configure your portfolio and start a simulation to see results here.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Final Metrics -->
+                <div class="card mt-3" id="finalMetricsCard" style="display: none;">
+                    <div class="card-header">
+                        <h5><i class="fas fa-trophy"></i> Final Performance Metrics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="finalMetrics">
+                            <!-- Metrics will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

@@ -30,7 +30,8 @@ class Portfolio:
         
         for position in self.positions.keys():
             sd = StockData(position, self.var1, self.var2)
-            market_price = sd.get_price(timestamp)
+            sd.curtime = timestamp  # Set the current time for the stock data
+            market_price = sd.get_price()
             if(market_price is None):
                 market_closed = True
                 break
@@ -62,7 +63,8 @@ class Portfolio:
         print("POSITIONS:")
         for ticker, shares in self.positions.items():
             sd = StockData(ticker, self.var1, self.var2)
-            market_price = sd.get_price(timestamp)
+            sd.curtime = timestamp  # Set the current time for the stock data
+            market_price = sd.get_price()
             print(f"  {ticker}: {shares} shares @ ${market_price}")
         print(f"P&L: ${self.get_PNL(timestamp):,.2f}")
         print(f"Current Value: ${self.get_value(timestamp):,.2f}")
@@ -70,7 +72,8 @@ class Portfolio:
     def buy(self, ticker, price, shares, timestamp):
 
         sd = StockData(ticker, self.var1, self.var2)
-        market_price = sd.get_price(timestamp)
+        sd.curtime = timestamp  # Set the current time for the stock data
+        market_price = sd.get_price()
         if(market_price is None):
             return
 
@@ -88,7 +91,8 @@ class Portfolio:
     
     def sell(self, ticker, price, shares, timestamp):
         sd = StockData(ticker, self.var1, self.var2)
-        market_price = sd.get_price(timestamp)
+        sd.curtime = timestamp  # Set the current time for the stock data
+        market_price = sd.get_price()
         if(market_price is None):
             return
 
