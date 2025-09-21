@@ -4,6 +4,9 @@ let aiChatVisible = false;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded - Initializing app...');
+    
+    
     // Duration slider update
     const durationSlider = document.getElementById('durationDays');
     const durationValue = document.getElementById('durationValue');
@@ -137,7 +140,6 @@ function startStatusPolling() {
             
             if (data.is_complete) {
                 clearInterval(statusInterval);
-                showFinalResults(data);
                 resetForm();
             }
         })
@@ -299,10 +301,14 @@ function addDayResult(result) {
     dayDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+
 function showFinalResults(data) {
+    console.log('showFinalResults called with data:', data);
     if (data.final_metrics) {
+        console.log('Final metrics found:', data.final_metrics);
         const finalMetricsCard = document.getElementById('finalMetricsCard');
         const finalMetrics = document.getElementById('finalMetrics');
+        console.log('Final metrics card element:', finalMetricsCard);
         
         finalMetrics.innerHTML = `
             <div class="col-md-3">
@@ -379,6 +385,9 @@ function showFinalResults(data) {
         `;
         
         finalMetricsCard.style.display = 'block';
+        console.log('Final metrics card should now be visible');
+    } else {
+        console.log('No final metrics found in data');
     }
     
     // Update progress to 100%
@@ -804,6 +813,7 @@ updateResults = function(data) {
     });
     if (data.is_complete && !data.error && currentSimulationId) {
         console.log('Simulation complete, showing final results, AI advisor and plots...');
+        console.log('Final metrics data:', data.final_metrics);
         setTimeout(() => {
             showFinalResults(data);
             showAIAdvisor();

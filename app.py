@@ -769,9 +769,9 @@ class SimulationManager:
             current_beta = beta_result['beta']
             print(f"DEBUG: Current portfolio beta: {current_beta}")
             
-            # Only hedge if beta is significant (absolute value > 0.05)
-            if abs(current_beta) <= 0.05:
-                print(f"DEBUG: Beta {current_beta:.3f} too low for hedging (threshold: 0.05)")
+            # Only hedge if beta is significant (absolute value > 0.01)
+            if abs(current_beta) <= 0.01:
+                print(f"DEBUG: Beta {current_beta:.3f} too low for hedging (threshold: 0.01)")
                 return []
             
             # Get VOO price
@@ -804,57 +804,19 @@ class SimulationManager:
             # Since VOO has beta ≈ 1, we need to short: portfolio_value * current_beta / voo_price
             portfolio_value = port.get_value(currtime)
             
-            # Calculate the hedge amount based on the long positions only
-            # We need to determine how much VOO to trade to bring beta to 0
-            
-            # Get the value of long positions only (excluding VOO shorts)
-            long_positions_value = 0
-            for ticker, shares in port.positions.items():
-                if shares > 0:  # Only long positions
-                    price = current_prices.get(ticker, 0)
-                    long_positions_value += shares * price
-                    # print(f"DEBUG: Long position {ticker}: {shares} shares @ ${price:.2f} = ${shares * price:.2f}")
-            
-            # print(f"DEBUG: Total long positions value: ${long_positions_value:.2f}")
-            # print(f"DEBUG: Current short positions: {port.short_positions}")
-            # print(f"DEBUG: Current cash: ${port.cash:.2f}")
-            # print(f"DEBUG: Total portfolio value: ${port.get_value(currtime):.2f}")
-            
-            # Calculate beta of long positions only by temporarily removing VOO shorts
-            if long_positions_value > 0:
-                # Store original VOO short position
-                original_voo_shorts = port.short_positions.get('VOO', 0)
-                
-                # Temporarily remove VOO shorts to calculate long-only beta
-                if 'VOO' in port.short_positions:
-                    del port.short_positions['VOO']
-                
-                # Recalculate beta without VOO shorts
-                beta_result = port.calculate_portfolio_beta()
-                if beta_result and 'beta' in beta_result:
-                    long_only_beta = beta_result['beta']
-                else:
-                    long_only_beta = 0
-                print(f"DEBUG: Long-only beta (excluding VOO shorts): {long_only_beta}")
-                
-                # Restore VOO short position
-                if original_voo_shorts > 0:
-                    port.short_positions['VOO'] = original_voo_shorts
-                
-                # Calculate shares to trade based on long-only beta
-                shares_to_trade = (long_positions_value * long_only_beta) / voo_price
-                print(f"DEBUG: Long positions value: ${long_positions_value:.2f}")
-                print(f"DEBUG: Long-only beta: {long_only_beta:.3f}")
-                print(f"DEBUG: Calculated shares to trade: {shares_to_trade:.1f}")
-            else:
-                print(f"DEBUG: No long positions for hedging")
-                return []
+            # Simple hedging calculation: short VOO equal to portfolio_value * beta
+            # This will neutralize the portfolio's market exposure
+            shares_to_trade = (portfolio_value * current_beta) / voo_price
+            print(f"DEBUG: Portfolio value: ${portfolio_value:.2f}")
+            print(f"DEBUG: Current beta: {current_beta:.3f}")
+            print(f"DEBUG: VOO price: ${voo_price:.2f}")
+            print(f"DEBUG: Calculated shares to trade: {shares_to_trade:.1f}")
             
             # Round to whole shares and add safety limits
             shares_to_trade = int(shares_to_trade)
             
             # Safety check: don't hedge more than 50% of portfolio value
-            max_hedge_value = long_positions_value * 0.5
+            max_hedge_value = portfolio_value * 0.5
             max_shares = int(max_hedge_value / voo_price)
             
             if abs(shares_to_trade) > max_shares:
@@ -1024,6 +986,7 @@ def simulation_status(simulation_id):
     
     if hasattr(simulation, 'error'):
         response['error'] = simulation.error
+    
     
     return jsonify(response)
 
