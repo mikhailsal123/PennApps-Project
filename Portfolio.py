@@ -23,6 +23,12 @@ class Portfolio:
         
         self.original_value = cash  #keep track of original value fo the portfolio
         self.change_over_time = {}  # {timestamp: portfolio_value}
+        
+        # Hedge margin tracking (separate from regular cash)
+        self.hedge_margin_used = 0.0  # Amount of margin used for hedging
+        self.hedge_margin_available = cash * 0.5  # 50% of portfolio can be used for hedge margin
+        self.hedge_trades = []  # Track all hedge transactions
+        self.short_positions = {}  # Track short positions for hedging
     
     def get_value(self, timestamp):
         position_val = self.cash
@@ -36,6 +42,21 @@ class Portfolio:
                 market_closed = True
                 break
             position_val += (market_price * self.positions[position])
+        
+        # Handle short positions if they exist
+        for position, short_shares in self.short_positions.items():
+            if short_shares > 0:  # Only process if we have short shares
+                sd = StockData(position, self.var1, self.var2)
+                sd.curtime = timestamp
+                market_price = sd.get_price()
+                if(market_price is None):
+                    market_closed = True
+                    break
+                # Short positions: we owe shares at current market price
+                # If price goes up, we lose money (owe more)
+                # If price goes down, we make money (owe less)
+                # The cash from shorting is already in self.cash, so we subtract current value
+                position_val -= (market_price * short_shares)
         
         # If market is closed, use the last known portfolio value
         if market_closed:
@@ -57,6 +78,84 @@ class Portfolio:
         value = self.get_value(timestamp)
         if value is not None:
             return value - self.original_value
+    
+    def get_hedge_margin_balance(self):
+        """Get available hedge margin balance"""
+        return self.hedge_margin_available - self.hedge_margin_used
+    
+    def execute_hedge_trade(self, ticker, price, shares, timestamp, trade_type="short"):
+        """Execute a hedge trade and update margin usage"""
+        if trade_type == "short":
+            # Short sale: receive cash, owe shares
+            trade_value = price * shares
+            margin_required = trade_value * 0.5  # 50% margin requirement
+            
+            if self.get_hedge_margin_balance() >= margin_required:
+                # Execute short trade
+                # Don't modify positions - short positions are tracked separately
+                self.cash += trade_value
+                self.hedge_margin_used += margin_required
+                
+                # Track short position
+                self.short_positions[ticker] = self.short_positions.get(ticker, 0) + shares
+                
+                # Record hedge trade
+                hedge_trade = {
+                    'timestamp': timestamp,
+                    'ticker': ticker,
+                    'action': 'short',
+                    'shares': shares,
+                    'price': price,
+                    'value': trade_value,
+                    'margin_used': margin_required
+                }
+                self.hedge_trades.append(hedge_trade)
+                
+                return True, f"Hedged: Shorted {shares} {ticker} @ ${price:.2f} (margin: ${margin_required:.2f})"
+            else:
+                return False, f"Insufficient hedge margin. Need ${margin_required:.2f}, have ${self.get_hedge_margin_balance():.2f}"
+        
+        elif trade_type == "buy":
+            # Buy back: pay cash, reduce short position
+            trade_value = price * shares
+            
+            # Check if we have enough short position to buy back
+            current_shorts = self.short_positions.get(ticker, 0)
+            if current_shorts < shares:
+                return False, f"Insufficient short position. Have {current_shorts} shorts, trying to buy back {shares}"
+            
+            # Check if we have enough cash
+            if self.cash < trade_value:
+                return False, f"Insufficient cash. Need ${trade_value:.2f}, have ${self.cash:.2f}"
+            
+            # Execute buy back trade
+            self.positions[ticker] = self.positions.get(ticker, 0) + shares
+            self.cash -= trade_value
+            
+            # Reduce short position
+            self.short_positions[ticker] = current_shorts - shares
+            if self.short_positions[ticker] <= 0:
+                del self.short_positions[ticker]
+            
+            # Release margin (50% of the short value)
+            margin_released = trade_value * 0.5
+            self.hedge_margin_used = max(0, self.hedge_margin_used - margin_released)
+            
+            # Record hedge trade
+            hedge_trade = {
+                'timestamp': timestamp,
+                'ticker': ticker,
+                'action': 'buy',
+                'shares': shares,
+                'price': price,
+                'value': trade_value,
+                'margin_released': margin_released
+            }
+            self.hedge_trades.append(hedge_trade)
+            
+            return True, f"Hedged: Bought back {shares} {ticker} @ ${price:.2f} (margin released: ${margin_released:.2f})"
+        
+        return False, "Invalid trade type"
 
     def summary(self, timestamp):
         print(f"CASH: ${self.cash}")

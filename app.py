@@ -430,7 +430,7 @@ Please provide a detailed analysis covering:
         return context
 
 class SimulationManager:
-    def __init__(self, simulation_id, initial_cash, start_date, duration_days, trading_frequency, tickers, trading_rules):
+    def __init__(self, simulation_id, initial_cash, start_date, duration_days, trading_frequency, tickers, trading_rules, beta_hedge_enabled=False):
         self.simulation_id = simulation_id
         self.initial_cash = initial_cash
         self.start_date = start_date
@@ -438,6 +438,7 @@ class SimulationManager:
         self.trading_frequency = trading_frequency  # 'daily' or 'intraday'
         self.tickers = tickers
         self.trading_rules = trading_rules
+        self.beta_hedge_enabled = beta_hedge_enabled
         self.results = []
         self.is_running = False
         self.is_complete = False
@@ -550,6 +551,21 @@ class SimulationManager:
                     if price is not None:
                         current_prices[ticker] = price
                 
+                # Also fetch VOO price for hedging if beta hedge is enabled
+                if self.beta_hedge_enabled and 'VOO' not in current_prices:
+                    try:
+                        start_date = (currtime - timedelta(days=5)).strftime('%Y-%m-%d')
+                        end_date = (currtime + timedelta(days=5)).strftime('%Y-%m-%d')
+                        voo_data = StockData('VOO', start_date, end_date)
+                        voo_data.get_stock_data('VOO', start_date, end_date, '1d')
+                        voo_data.curtime = currtime
+                        voo_price = voo_data.get_price()
+                        if voo_price:
+                            current_prices['VOO'] = voo_price
+                            print(f"DEBUG: Pre-fetched VOO price: ${voo_price}")
+                    except Exception as e:
+                        print(f"DEBUG: Could not pre-fetch VOO price: {e}")
+                
                 # Get current prices for trading rule tickers (if not already fetched)
                 for ticker in self.trading_rules.keys():
                     if ticker not in current_prices:
@@ -638,6 +654,16 @@ class SimulationManager:
                             del self.trading_rules[ticker]
                             print(f"DEBUG: Removed ticker {ticker} from trading rules (no more rules)")
                 
+                # Beta hedging logic - run after all trading rules
+                if self.beta_hedge_enabled:
+                    print(f"DEBUG: Running beta hedge for day {i + 1}")
+                    hedge_trades = self._execute_beta_hedge(port, currtime, current_prices, data)
+                    trades_executed.extend(hedge_trades)
+                    if hedge_trades:
+                        print(f"DEBUG: Added {len(hedge_trades)} hedge trades: {hedge_trades}")
+                    else:
+                        print(f"DEBUG: No hedge trades generated for day {i + 1}")
+                
                 # Get current portfolio value
                 current_value = port.get_value(currtime)
                 
@@ -660,8 +686,14 @@ class SimulationManager:
                     'trades': trades_executed.copy(),
                     'positions': port.positions.copy(),
                     'cash': port.cash,
-                    'pnl': port.get_PNL(currtime)
+                    'pnl': port.get_PNL(currtime),
+                    'one_time_rules_executed': len(rules_to_remove),  # Track how many one-time rules were executed
+                    'hedge_margin_balance': port.get_hedge_margin_balance()  # Track available hedge margin
                 }
+                
+                # Debug output for trades
+                if trades_executed:
+                    print(f"DEBUG: Day {i + 1} trades: {trades_executed}")
                 self.results.append(daily_result)
                 
                 # Small delay for real-time effect
@@ -687,6 +719,11 @@ class SimulationManager:
                 # Calculate portfolio beta
                 beta_result = port.calculate_portfolio_beta()
                 
+                # Calculate hedge statistics
+                hedge_trades_count = len(port.hedge_trades) if hasattr(port, 'hedge_trades') else 0
+                total_hedge_margin_used = sum(trade['margin_used'] for trade in port.hedge_trades) if hasattr(port, 'hedge_trades') else 0
+                hedge_margin_remaining = port.get_hedge_margin_balance()
+                
                 self.final_metrics = {
                     'total_return_pct': round(total_return, 2),
                     'final_value': round(final_value, 2),
@@ -697,7 +734,11 @@ class SimulationManager:
                     'final_positions': port.positions,
                     'beta': beta_result['beta'] if beta_result else None,
                     'beta_interpretation': beta_result['interpretation'] if beta_result else None,
-                    'correlation': beta_result['correlation'] if beta_result else None
+                    'correlation': beta_result['correlation'] if beta_result else None,
+                    'hedge_trades_count': hedge_trades_count,
+                    'total_hedge_margin_used': round(total_hedge_margin_used, 2),
+                    'hedge_margin_remaining': round(hedge_margin_remaining, 2),
+                    'hedge_trades': port.hedge_trades if hasattr(port, 'hedge_trades') else []
                 }
             
             self.is_complete = True
@@ -716,6 +757,169 @@ class SimulationManager:
         except Exception as e:
             self.error = str(e)
             self.is_complete = True
+    
+    def _execute_beta_hedge(self, port, currtime, current_prices, data):
+        """Execute beta hedging by shorting VOO when beta > 0"""
+        try:
+            # Calculate current portfolio beta
+            beta_result = port.calculate_portfolio_beta()
+            if not beta_result or 'beta' not in beta_result:
+                return []
+            
+            current_beta = beta_result['beta']
+            print(f"DEBUG: Current portfolio beta: {current_beta}")
+            
+            # Only hedge if beta is significant (absolute value > 0.05)
+            if abs(current_beta) <= 0.05:
+                print(f"DEBUG: Beta {current_beta:.3f} too low for hedging (threshold: 0.05)")
+                return []
+            
+            # Get VOO price
+            voo_price = current_prices.get('VOO')
+            if not voo_price:
+                # Try to fetch VOO price if not already available
+                try:
+                    # Use a date range to ensure we get data
+                    start_date = (currtime - timedelta(days=5)).strftime('%Y-%m-%d')
+                    end_date = (currtime + timedelta(days=5)).strftime('%Y-%m-%d')
+                    voo_data = StockData('VOO', start_date, end_date)
+                    voo_data.get_stock_data('VOO', start_date, end_date, '1d')
+                    voo_data.curtime = currtime
+                    voo_price = voo_data.get_price()
+                    if voo_price:
+                        current_prices['VOO'] = voo_price
+                        print(f"DEBUG: Successfully fetched VOO price: ${voo_price}")
+                    else:
+                        print(f"DEBUG: VOO price is None after fetching")
+                except Exception as e:
+                    print(f"DEBUG: Could not fetch VOO price: {e}")
+                    return []
+            
+            if not voo_price:
+                print("DEBUG: VOO price not available for hedging")
+                return []
+            
+            # Calculate how much VOO to short to hedge the beta
+            # We want to short enough VOO to bring beta to 0
+            # Since VOO has beta ≈ 1, we need to short: portfolio_value * current_beta / voo_price
+            portfolio_value = port.get_value(currtime)
+            
+            # Calculate the hedge amount based on the long positions only
+            # We need to determine how much VOO to trade to bring beta to 0
+            
+            # Get the value of long positions only (excluding VOO shorts)
+            long_positions_value = 0
+            for ticker, shares in port.positions.items():
+                if shares > 0:  # Only long positions
+                    price = current_prices.get(ticker, 0)
+                    long_positions_value += shares * price
+                    # print(f"DEBUG: Long position {ticker}: {shares} shares @ ${price:.2f} = ${shares * price:.2f}")
+            
+            # print(f"DEBUG: Total long positions value: ${long_positions_value:.2f}")
+            # print(f"DEBUG: Current short positions: {port.short_positions}")
+            # print(f"DEBUG: Current cash: ${port.cash:.2f}")
+            # print(f"DEBUG: Total portfolio value: ${port.get_value(currtime):.2f}")
+            
+            # Calculate beta of long positions only by temporarily removing VOO shorts
+            if long_positions_value > 0:
+                # Store original VOO short position
+                original_voo_shorts = port.short_positions.get('VOO', 0)
+                
+                # Temporarily remove VOO shorts to calculate long-only beta
+                if 'VOO' in port.short_positions:
+                    del port.short_positions['VOO']
+                
+                # Recalculate beta without VOO shorts
+                beta_result = port.calculate_portfolio_beta()
+                if beta_result and 'beta' in beta_result:
+                    long_only_beta = beta_result['beta']
+                else:
+                    long_only_beta = 0
+                print(f"DEBUG: Long-only beta (excluding VOO shorts): {long_only_beta}")
+                
+                # Restore VOO short position
+                if original_voo_shorts > 0:
+                    port.short_positions['VOO'] = original_voo_shorts
+                
+                # Calculate shares to trade based on long-only beta
+                shares_to_trade = (long_positions_value * long_only_beta) / voo_price
+                print(f"DEBUG: Long positions value: ${long_positions_value:.2f}")
+                print(f"DEBUG: Long-only beta: {long_only_beta:.3f}")
+                print(f"DEBUG: Calculated shares to trade: {shares_to_trade:.1f}")
+            else:
+                print(f"DEBUG: No long positions for hedging")
+                return []
+            
+            # Round to whole shares and add safety limits
+            shares_to_trade = int(shares_to_trade)
+            
+            # Safety check: don't hedge more than 50% of portfolio value
+            max_hedge_value = long_positions_value * 0.5
+            max_shares = int(max_hedge_value / voo_price)
+            
+            if abs(shares_to_trade) > max_shares:
+                shares_to_trade = max_shares if shares_to_trade > 0 else -max_shares
+                print(f"DEBUG: Limited hedge to ${max_hedge_value:.2f} (max shares: {max_shares})")
+            
+            print(f"DEBUG: Final shares_to_trade: {shares_to_trade}")
+            
+            if shares_to_trade > 0:
+                # Short VOO to hedge positive beta (shares_to_trade is positive, so we short)
+                shares_to_short = shares_to_trade
+                print(f"DEBUG: POSITIVE BETA - Attempting to short {shares_to_short} VOO shares at ${voo_price}")
+                success, message = port.execute_hedge_trade('VOO', voo_price, shares_to_short, currtime, 'short')
+                if success:
+                    hedge_trade = f"Hedged beta: {message} (beta was {current_beta:.3f})"
+                    print(f"DEBUG: {hedge_trade}")
+                    return [hedge_trade]
+                else:
+                    print(f"DEBUG: Short hedge failed: {message}")
+                    # Try partial hedge based on available margin
+                    available_margin = port.get_hedge_margin_balance()
+                    max_shares = int((available_margin * 2) / voo_price)  # 2x leverage with 50% margin
+                    if max_shares > 0:
+                        print(f"DEBUG: Trying partial short hedge with {max_shares} shares")
+                        success, message = port.execute_hedge_trade('VOO', voo_price, max_shares, currtime, 'short')
+                        if success:
+                            hedge_trade = f"Partial hedge: {message} (beta was {current_beta:.3f})"
+                            print(f"DEBUG: {hedge_trade}")
+                            return [hedge_trade]
+                        else:
+                            print(f"DEBUG: Partial short hedge failed: {message}")
+                    else:
+                        print(f"DEBUG: Insufficient hedge margin for short hedge. Available: ${available_margin:.2f}")
+            elif shares_to_trade < 0:
+                # Buy back VOO to hedge negative beta
+                shares_to_buy = abs(shares_to_trade)
+                current_shorts = port.short_positions.get('VOO', 0)
+                print(f"DEBUG: NEGATIVE BETA - Attempting to buy back {shares_to_buy} VOO shares at ${voo_price}")
+                
+                # Don't try to buy back more than we have short
+                if shares_to_buy > current_shorts:
+                    shares_to_buy = current_shorts
+                    print(f"DEBUG: Limiting buy back to available shorts: {shares_to_buy} (had {current_shorts} shorts)")
+                
+                if shares_to_buy > 0:
+                    print(f"DEBUG: Attempting to buy back {shares_to_buy} VOO shares at ${voo_price}")
+                    success, message = port.execute_hedge_trade('VOO', voo_price, shares_to_buy, currtime, 'buy')
+                    if success:
+                        hedge_trade = f"Hedged beta: {message} (beta was {current_beta:.3f})"
+                        print(f"DEBUG: {hedge_trade}")
+                        return [hedge_trade]
+                    else:
+                        print(f"DEBUG: Buy back hedge failed: {message}")
+                else:
+                    print(f"DEBUG: No VOO shorts to buy back (current shorts: {current_shorts})")
+            else:
+                print(f"DEBUG: No shares to trade (shares_to_trade: {shares_to_trade})")
+            
+            return []
+            
+        except Exception as e:
+            print(f"ERROR: Error in beta hedging: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
 
 @app.route('/')
 def index():
@@ -772,9 +976,10 @@ def start_simulation():
         
         # Create and start simulation
         print(f"DEBUG: About to create SimulationManager with trading_rules: {trading_rules}")
+        beta_hedge_enabled = data.get('beta_hedge_enabled', False)
         simulation = SimulationManager(
             simulation_id, initial_cash, start_date, duration_days, 
-            trading_frequency, tickers, trading_rules
+            trading_frequency, tickers, trading_rules, beta_hedge_enabled
         )
         
         print(f"DEBUG: SimulationManager created successfully")

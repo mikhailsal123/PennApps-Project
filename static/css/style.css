@@ -184,6 +184,13 @@ body {
     color: #155724;
 }
 
+.trade-executed.hedge {
+    background-color: #e2e3f5;
+    border: 1px solid #c5c7e8;
+    color: #4a4c8a;
+    font-weight: 500;
+}
+
 .portfolio-value {
     font-size: 1.2em;
     font-weight: 700;
@@ -224,10 +231,15 @@ body {
     border: 1px solid #dee2e6;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    min-height: 320px;
 }
 
 #plotContainer .text-center {
-    padding: 2rem;
+    padding: 2.5rem;
+    min-height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .plot-btn-group .btn {
@@ -247,22 +259,30 @@ body {
 
 /* Compact plot styling for sidebar */
 #plotsCard {
-    font-size: 1rem;
+    font-size: 1.1rem;
 }
 
 #plotsCard .card-header h6 {
     margin-bottom: 0;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     font-weight: 600;
 }
 
 #plotsCard .btn-group-sm .btn {
-    font-size: 0.85rem;
-    padding: 0.4rem 0.6rem;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.8rem;
 }
 
 #plotsCard .btn-group-sm .btn i {
-    font-size: 1rem;
+    font-size: 1.1rem;
+}
+
+#plotsCard .card-body {
+    padding: 1.5rem;
+}
+
+#plotsCard #plotContainer {
+    min-height: 350px;
 }
 
 .positive {
@@ -629,6 +649,28 @@ body {
     border: 2px solid transparent;
     border-radius: 8px;
     padding: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.trading-rule .input-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.trading-rule .input-group .form-select,
+.trading-rule .input-group .form-control {
+    flex: 1;
+    min-width: 120px;
+}
+
+.trading-rule .input-group .form-control[placeholder="Threshold"] {
+    min-width: 100px;
+}
+
+.trading-rule .input-group .form-control[placeholder="Shares"] {
+    min-width: 80px;
 }
 
 .trading-rule:hover {
@@ -655,4 +697,83 @@ body {
     0% { box-shadow: 0 0 15px rgba(255, 193, 7, 0.3); }
     50% { box-shadow: 0 0 25px rgba(255, 193, 7, 0.6); }
     100% { box-shadow: 0 0 15px rgba(255, 193, 7, 0.3); }
+}
+
+/* Sand evaporation effect for executed one-time rules */
+.trading-rule.evaporating {
+    animation: sand-evaporation 2s ease-out forwards;
+    pointer-events: none;
+}
+
+@keyframes sand-evaporation {
+    0% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: blur(0px);
+    }
+    30% {
+        opacity: 0.8;
+        transform: scale(0.98) translateY(-2px);
+        filter: blur(1px);
+    }
+    60% {
+        opacity: 0.4;
+        transform: scale(0.95) translateY(-8px);
+        filter: blur(3px);
+    }
+    80% {
+        opacity: 0.1;
+        transform: scale(0.9) translateY(-15px);
+        filter: blur(6px);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.8) translateY(-25px);
+        filter: blur(10px);
+        height: 0;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+}
+
+/* Particle effect for sand-like appearance */
+.trading-rule.evaporating::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 20%, rgba(255, 193, 7, 0.3) 1px, transparent 1px),
+        radial-gradient(circle at 80% 30%, rgba(255, 193, 7, 0.2) 1px, transparent 1px),
+        radial-gradient(circle at 40% 70%, rgba(255, 193, 7, 0.25) 1px, transparent 1px),
+        radial-gradient(circle at 70% 80%, rgba(255, 193, 7, 0.2) 1px, transparent 1px);
+    background-size: 8px 8px, 12px 12px, 6px 6px, 10px 10px;
+    animation: particle-drift 2s ease-out forwards;
+    pointer-events: none;
+}
+
+@keyframes particle-drift {
+    0% {
+        opacity: 0;
+        transform: translateY(0);
+    }
+    20% {
+        opacity: 1;
+        transform: translateY(-5px);
+    }
+    50% {
+        opacity: 0.8;
+        transform: translateY(-15px) translateX(5px);
+    }
+    80% {
+        opacity: 0.3;
+        transform: translateY(-25px) translateX(10px);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-40px) translateX(15px);
+    }
 }

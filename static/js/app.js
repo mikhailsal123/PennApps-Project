@@ -178,6 +178,56 @@ function updateResults(data) {
                 addDayResult(result);
             }
         });
+        
+        // Check for executed one-time rules and trigger evaporation
+        checkForExecutedOneTimeRules(data);
+        
+        // Update hedge margin balance display
+        updateHedgeMarginBalance(data);
+    }
+}
+
+// Function to trigger evaporation effect for one-time rules
+function triggerRuleEvaporation() {
+    const oneTimeRules = document.querySelectorAll('.trading-rule.one-time-mode');
+    oneTimeRules.forEach(rule => {
+        rule.classList.add('evaporating');
+        // Remove the element after animation completes
+        setTimeout(() => {
+            rule.remove();
+        }, 2000); // Match the CSS animation duration
+    });
+}
+
+// Function to check for executed one-time rules in simulation results
+function checkForExecutedOneTimeRules(data) {
+    if (data && data.results && data.results.length > 0) {
+        const latestResult = data.results[data.results.length - 1];
+        if (latestResult.one_time_rules_executed > 0) {
+            console.log(`DEBUG: ${latestResult.one_time_rules_executed} one-time rules were executed`);
+            triggerRuleEvaporation();
+        }
+    }
+}
+
+// Function to update hedge margin balance display
+function updateHedgeMarginBalance(data) {
+    const hedgeMarginElement = document.getElementById('hedgeMarginBalance');
+    if (hedgeMarginElement && data && data.results && data.results.length > 0) {
+        const latestResult = data.results[data.results.length - 1];
+        if (latestResult.hedge_margin_balance !== undefined) {
+            const balance = latestResult.hedge_margin_balance;
+            hedgeMarginElement.textContent = `Hedge Margin: $${balance.toFixed(2)}`;
+            
+            // Color code based on available margin
+            if (balance < 1000) {
+                hedgeMarginElement.className = 'text-danger';
+            } else if (balance < 5000) {
+                hedgeMarginElement.className = 'text-warning';
+            } else {
+                hedgeMarginElement.className = 'text-info';
+            }
+        }
     }
 }
 
@@ -211,9 +261,21 @@ function addDayResult(result) {
     if (result.trades.length > 0) {
         tradesHtml = '<div class="mt-2">';
         result.trades.forEach(trade => {
-            const isBuy = trade.toLowerCase().includes('bought');
-            const tradeClass = isBuy ? 'trade-executed buy' : 'trade-executed sell';
-            const icon = isBuy ? 'fa-plus-circle' : 'fa-minus-circle';
+            const isBuy = trade.toLowerCase().includes('bought') && !trade.toLowerCase().includes('bought back');
+            const isHedge = trade.toLowerCase().includes('hedged') || trade.toLowerCase().includes('shorted') || trade.toLowerCase().includes('bought back');
+            let tradeClass, icon;
+            
+            if (isHedge) {
+                tradeClass = 'trade-executed hedge';
+                icon = 'fa-shield-alt';
+            } else if (isBuy) {
+                tradeClass = 'trade-executed buy';
+                icon = 'fa-plus-circle';
+            } else {
+                tradeClass = 'trade-executed sell';
+                icon = 'fa-minus-circle';
+            }
+            
             tradesHtml += `<div class="${tradeClass}"><i class="fas ${icon}"></i> ${trade}</div>`;
         });
         tradesHtml += '</div>';
@@ -290,6 +352,30 @@ function showFinalResults(data) {
                     <div class="metric-label">Market Correlation</div>
                 </div>
             </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value">
+                        ${data.final_metrics.hedge_trades_count || 0}
+                    </div>
+                    <div class="metric-label">Hedge Trades</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value">
+                        $${data.final_metrics.total_hedge_margin_used ? data.final_metrics.total_hedge_margin_used.toLocaleString() : '0'}
+                    </div>
+                    <div class="metric-label">Margin Used</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value">
+                        $${data.final_metrics.hedge_margin_remaining ? data.final_metrics.hedge_margin_remaining.toLocaleString() : '0'}
+                    </div>
+                    <div class="metric-label">Margin Remaining</div>
+                </div>
+            </div>
         `;
         
         finalMetricsCard.style.display = 'block';
@@ -356,7 +442,8 @@ function collectFormData() {
         duration_days: parseInt(document.getElementById('durationDays').value),
         trading_frequency: document.getElementById('tradingFrequency').value,
         tickers: tickers,
-        trading_rules: tradingRules
+        trading_rules: tradingRules,
+        beta_hedge_enabled: document.getElementById('betaHedgeEnabled').checked
     };
     
     return formData;
@@ -705,13 +792,29 @@ updateResults = function(data) {
     console.log('updateResults override called with data:', data);
     originalUpdateResults(data);
     
-    // Show AI advisor and plots when simulation is complete
+    // Check for executed one-time rules and trigger evaporation
+    checkForExecutedOneTimeRules(data);
+    
+    // Show final results, AI advisor and plots when simulation is complete
+    console.log('updateResults data:', { 
+        is_complete: data.is_complete, 
+        error: data.error, 
+        currentSimulationId,
+        resultsLength: data.results ? data.results.length : 0
+    });
     if (data.is_complete && !data.error && currentSimulationId) {
-        console.log('Simulation complete, showing AI advisor and plots...');
+        console.log('Simulation complete, showing final results, AI advisor and plots...');
         setTimeout(() => {
+            showFinalResults(data);
             showAIAdvisor();
             showPlotsCard();
         }, 1000); // Small delay to let results display first
+    } else {
+        console.log('Not showing final results because:', {
+            is_complete: data.is_complete,
+            has_error: !!data.error,
+            has_simulation_id: !!currentSimulationId
+        });
     }
 };
 
