@@ -621,3 +621,38 @@ body {
     50% { opacity: 0.7; }
     100% { opacity: 1; }
 }
+
+/* Trading rule clickable styles */
+.trading-rule {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.trading-rule:hover {
+    border-color: #6c757d;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* One-time trading rule styles */
+.trading-rule.one-time-mode {
+    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+    border: 2px solid #ffc107;
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.3);
+    animation: pulse-glow 2s infinite;
+}
+
+.trading-rule.one-time-mode .input-group {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+    padding: 4px;
+}
+
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 15px rgba(255, 193, 7, 0.3); }
+    50% { box-shadow: 0 0 25px rgba(255, 193, 7, 0.6); }
+    100% { box-shadow: 0 0 15px rgba(255, 193, 7, 0.3); }
+}

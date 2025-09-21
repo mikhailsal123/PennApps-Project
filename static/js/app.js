@@ -318,32 +318,37 @@ function collectFormData() {
     
     const tradingRules = [];
     const ruleInputs = document.querySelectorAll('#tradingRulesContainer .trading-rule');
+    console.log('DEBUG: Found', ruleInputs.length, 'trading rule inputs');
     
     ruleInputs.forEach((input, index) => {
-        const tickerInput = input.querySelector('.ticker-input');
+        const tickerSelect = input.querySelector('.ticker-select');
         const actionSelect = input.querySelector('.action-select');
         const conditionSelect = input.querySelector('select:last-of-type');
         const thresholdInput = input.querySelector('input[type="number"]:first-of-type');
         const sharesInput = input.querySelector('input[type="number"]:last-of-type');
         
         console.log(`Rule ${index}:`, {
-            ticker: tickerInput?.value,
+            ticker: tickerSelect?.value,
             action: actionSelect?.value,
             condition: conditionSelect?.value,
             threshold: thresholdInput?.value,
             shares: sharesInput?.value
         });
         
-        if (tickerInput && tickerInput.value.trim() && actionSelect.value && conditionSelect.value && thresholdInput.value && sharesInput.value) {
+        if (tickerSelect && tickerSelect.value.trim() && actionSelect.value && conditionSelect.value && thresholdInput.value && sharesInput.value) {
+            const isOneTime = input.classList.contains('one-time-mode');
             tradingRules.push({
-                ticker: tickerInput.value.toUpperCase().trim(),
+                ticker: tickerSelect.value.toUpperCase().trim(),
                 action: actionSelect.value,
                 condition: conditionSelect.value,
                 threshold: parseFloat(thresholdInput.value),
-                shares: parseInt(sharesInput.value)
+                shares: parseInt(sharesInput.value),
+                one_time: isOneTime
             });
         }
     });
+    
+    console.log('DEBUG: Final trading rules array:', tradingRules);
     
     const formData = {
         initial_cash: parseFloat(document.getElementById('initialCash').value),
@@ -421,9 +426,20 @@ function addTradingRule() {
     const container = document.getElementById('tradingRulesContainer');
     const ruleInput = document.createElement('div');
     ruleInput.className = 'trading-rule mb-2';
+    ruleInput.onclick = function() { toggleOneTimeMode(this); };
+    ruleInput.title = 'Click to toggle one-time execution mode';
     ruleInput.innerHTML = `
         <div class="input-group">
-            <input type="text" class="form-control ticker-input" placeholder="Ticker (e.g., AAPL, TSLA)" value="NVDA" maxlength="10" style="text-transform: uppercase;" oninput="validateTicker(this)">
+            <select class="form-select ticker-select">
+                <option value="NVDA">NVDA</option>
+                <option value="AAPL">AAPL</option>
+                <option value="TSLA">TSLA</option>
+                <option value="MSFT">MSFT</option>
+                <option value="GOOGL">GOOGL</option>
+                <option value="AMZN">AMZN</option>
+                <option value="META">META</option>
+                <option value="NFLX">NFLX</option>
+            </select>
             <select class="form-select action-select">
                 <option value="sell">Sell</option>
                 <option value="buy">Buy</option>
@@ -434,7 +450,7 @@ function addTradingRule() {
             </select>
             <input type="number" class="form-control" placeholder="Threshold" step="0.01">
             <input type="number" class="form-control" placeholder="Shares" value="10" min="1">
-            <button type="button" class="btn btn-outline-danger" onclick="removeTradingRule(this)">
+            <button type="button" class="btn btn-outline-danger" onclick="removeTradingRule(this); event.stopPropagation();">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -464,6 +480,20 @@ function validateTicker(input) {
 
 function removeTradingRule(button) {
     button.closest('.trading-rule').remove();
+}
+
+function toggleOneTimeMode(tradingRule) {
+    const isOneTime = tradingRule.classList.contains('one-time-mode');
+    
+    if (isOneTime) {
+        // Turn off one-time mode
+        tradingRule.classList.remove('one-time-mode');
+        tradingRule.title = 'Click to toggle one-time execution mode';
+    } else {
+        // Turn on one-time mode
+        tradingRule.classList.add('one-time-mode');
+        tradingRule.title = 'One-time mode active - rule will execute once then be removed';
+    }
 }
 
 function updateDurationLimits() {

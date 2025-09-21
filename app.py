@@ -447,6 +447,8 @@ class SimulationManager:
         """Run the portfolio simulation"""
         try:
             self.is_running = True
+            print(f"DEBUG: Starting simulation with trading rules: {self.trading_rules}")
+            print(f"DEBUG: Number of trading rule groups: {len(self.trading_rules)}")
             
             # Initialize portfolio and stock data
             currtime = datetime.strptime(self.start_date, '%Y-%m-%d')
@@ -551,27 +553,50 @@ class SimulationManager:
                 # Get current prices for trading rule tickers (if not already fetched)
                 for ticker in self.trading_rules.keys():
                     if ticker not in current_prices:
-                        # Use dummy price for trading rule tickers (no stock validation)
-                        current_prices[ticker] = 100.0  # Default dummy price
+                        # Fetch real stock data for trading rule tickers
+                        try:
+                            temp_data = StockData(ticker, start_date_str, end_date_str)
+                            interval = '60m' if self.trading_frequency == 'intraday' else '1d'
+                            temp_data.get_stock_data(ticker, start_date_str, end_date_str, interval)
+                            temp_data.curtime = currtime
+                            price = temp_data.get_price()
+                            if price is not None:
+                                current_prices[ticker] = price
+                                print(f"DEBUG: Fetched real price for {ticker}: ${price}")
+                            else:
+                                print(f"DEBUG: No price available for {ticker}, using dummy price")
+                                current_prices[ticker] = 100.0  # Fallback dummy price
+                        except Exception as e:
+                            print(f"DEBUG: Error fetching data for {ticker}: {e}, using dummy price")
+                            current_prices[ticker] = 100.0  # Fallback dummy price
                 
                 # Check trading conditions and execute trades
                 trades_executed = []
+                rules_to_remove = []  # Track one-time rules that should be removed
                 
+                print(f"DEBUG: Processing {len(self.trading_rules)} trading rule groups")
                 for ticker, rules in self.trading_rules.items():
+                    print(f"DEBUG: Processing {len(rules)} rules for {ticker}")
                     try:
                         if ticker in current_prices:
                             price = current_prices[ticker]
-                            for rule in rules:
+                            print(f"DEBUG: Price for {ticker}: ${price}")
+                            for rule_index, rule in enumerate(rules):
+                                print(f"DEBUG: Processing rule: {rule}")
+                                rule_executed = False
+                                
                                 # Handle sell rules
                                 if rule['action'] == 'sell':
                                     if rule['condition'] == 'greater_than' and price > rule['threshold']:
                                         if port.positions.get(ticker, 0) >= rule['shares']:
                                             port.sell(ticker, price, rule['shares'], currtime)
                                             trades_executed.append(f"Sold {rule['shares']} {ticker} @ ${price:.2f}")
+                                            rule_executed = True
                                     elif rule['condition'] == 'less_than' and price < rule['threshold']:
                                         if port.positions.get(ticker, 0) >= rule['shares']:
                                             port.sell(ticker, price, rule['shares'], currtime)
                                             trades_executed.append(f"Sold {rule['shares']} {ticker} @ ${price:.2f}")
+                                            rule_executed = True
                                 
                                 # Handle buy rules
                                 elif rule['action'] == 'buy':
@@ -581,15 +606,37 @@ class SimulationManager:
                                         if port.cash >= cost:
                                             port.buy(ticker, price + 1, rule['shares'], currtime)  # Add small buffer to ensure purchase
                                             trades_executed.append(f"Bought {rule['shares']} {ticker} @ ${price:.2f}")
+                                            rule_executed = True
                                     elif rule['condition'] == 'less_than' and price < rule['threshold']:
                                         # Check if we have enough cash to buy
                                         cost = price * rule['shares']
                                         if port.cash >= cost:
                                             port.buy(ticker, price + 1, rule['shares'], currtime)  # Add small buffer to ensure purchase
                                             trades_executed.append(f"Bought {rule['shares']} {ticker} @ ${price:.2f}")
+                                            rule_executed = True
+                                
+                                # If rule executed and it's a one-time rule, mark it for removal
+                                if rule_executed and rule.get('one_time', False):
+                                    rules_to_remove.append((ticker, rule_index))
+                                    print(f"DEBUG: One-time rule executed and marked for removal: {ticker} rule {rule_index}")
+                                    
+                        else:
+                            print(f"DEBUG: No price available for {ticker}")
                     except Exception as e:
-                        print(f"Error processing trading rules for {ticker}: {e}")
+                        print(f"ERROR: Error processing trading rules for {ticker}: {e}")
+                        import traceback
+                        traceback.print_exc()
                         continue
+                
+                # Remove one-time rules that were executed (in reverse order to maintain indices)
+                for ticker, rule_index in reversed(rules_to_remove):
+                    if ticker in self.trading_rules and rule_index < len(self.trading_rules[ticker]):
+                        removed_rule = self.trading_rules[ticker].pop(rule_index)
+                        print(f"DEBUG: Removed one-time rule: {removed_rule}")
+                        # If no more rules for this ticker, remove the ticker entirely
+                        if not self.trading_rules[ticker]:
+                            del self.trading_rules[ticker]
+                            print(f"DEBUG: Removed ticker {ticker} from trading rules (no more rules)")
                 
                 # Get current portfolio value
                 current_value = port.get_value(currtime)
@@ -699,8 +746,10 @@ def start_simulation():
         
         # Extract trading rules
         trading_rules = {}
+        print(f"DEBUG: Raw trading rules data: {data.get('trading_rules', [])}")
         for rule_data in data.get('trading_rules', []):
             try:
+                print(f"DEBUG: Processing rule data: {rule_data}")
                 ticker = rule_data['ticker'].upper()
                 if ticker not in trading_rules:
                     trading_rules[ticker] = []
@@ -708,23 +757,32 @@ def start_simulation():
                     'action': rule_data.get('action', 'sell'),  # Default to sell for backward compatibility
                     'condition': rule_data['condition'],
                     'threshold': float(rule_data['threshold']),
-                    'shares': int(rule_data['shares'])
+                    'shares': int(rule_data['shares']),
+                    'one_time': rule_data.get('one_time', False)
                 })
+                print(f"DEBUG: Added rule for {ticker}: {trading_rules[ticker][-1]}")
             except Exception as e:
-                print(f"Error processing trading rule: {e}")
+                print(f"ERROR: Error processing trading rule: {e}")
                 print(f"Rule data: {rule_data}")
+                import traceback
+                traceback.print_exc()
                 continue
         
+        print(f"DEBUG: Final trading rules: {trading_rules}")
+        
         # Create and start simulation
+        print(f"DEBUG: About to create SimulationManager with trading_rules: {trading_rules}")
         simulation = SimulationManager(
             simulation_id, initial_cash, start_date, duration_days, 
             trading_frequency, tickers, trading_rules
         )
         
+        print(f"DEBUG: SimulationManager created successfully")
         # Start simulation in background thread
         simulation.thread = threading.Thread(target=simulation.run_simulation)
         simulation.thread.daemon = True
         simulation.thread.start()
+        print(f"DEBUG: Simulation started in background thread")
         
         # Store simulation
         active_simulations[simulation_id] = simulation

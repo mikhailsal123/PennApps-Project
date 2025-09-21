@@ -97,9 +97,18 @@
                                        title="Set automatic buy/sell rules based on price conditions. Buy rules require sufficient cash, sell rules require sufficient shares."></i>
                                 </label>
                                 <div id="tradingRulesContainer">
-                                    <div class="trading-rule mb-2">
+                                    <div class="trading-rule mb-2" onclick="toggleOneTimeMode(this)" title="Click to toggle one-time execution mode">
                                         <div class="input-group">
-                                            <input type="text" class="form-control ticker-input" placeholder="Ticker (e.g., AAPL, TSLA)" value="NVDA" maxlength="10" style="text-transform: uppercase;" oninput="validateTicker(this)">
+                                            <select class="form-select ticker-select">
+                                                <option value="NVDA">NVDA</option>
+                                                <option value="AAPL">AAPL</option>
+                                                <option value="TSLA">TSLA</option>
+                                                <option value="MSFT">MSFT</option>
+                                                <option value="GOOGL">GOOGL</option>
+                                                <option value="AMZN">AMZN</option>
+                                                <option value="META">META</option>
+                                                <option value="NFLX">NFLX</option>
+                                            </select>
                                             <select class="form-select action-select">
                                                 <option value="sell">Sell</option>
                                                 <option value="buy">Buy</option>
@@ -110,7 +119,7 @@
                                             </select>
                                             <input type="number" class="form-control" placeholder="Threshold" value="180" step="0.01">
                                             <input type="number" class="form-control" placeholder="Shares" value="10" min="1">
-                                            <button type="button" class="btn btn-outline-danger" onclick="removeTradingRule(this)">
+                                            <button type="button" class="btn btn-outline-danger" onclick="removeTradingRule(this); event.stopPropagation();">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </div>
