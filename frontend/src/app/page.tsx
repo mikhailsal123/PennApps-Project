@@ -79,7 +79,7 @@ const LandingPage = () => {
                     <div className="flex flex-col md:flex-row gap-8 max-w-6xl w-full">
                         {/* Left Code Block with Typing Animation */}
                         <div className="flex-1">
-                            <div className="bg-gray-900 rounded-2xl p-6 h-96 font-mono text-sm overflow-hidden">
+                            <div className="bg-gray-900 rounded-2xl p-6 h-[450px] font-mono text-sm overflow-hidden">
                                 <TypingAnimation
                                     key={animationKey}
                                     className="text-white text-sm font-mono text-left whitespace-pre-line"
@@ -92,60 +92,14 @@ const LandingPage = () => {
                             </div>
                         </div>
 
-                        {/* Right Code Block - Static */}
+                        {/* Right Image Block - ChatGPT Image */}
                         <div className="flex-1">
-                            <div className="bg-gray-900 rounded-2xl p-6 h-96 font-mono text-sm overflow-hidden">
-                                <div className="text-gray-400 mb-4">// Paste a code snippet</div>
-                                <div className="text-blue-400">import</div>
-                                <div className="text-white"> &#123; </div>
-                                <div className="text-purple-400">motion</div>
-                                <div className="text-white"> &#125; </div>
-                                <div className="text-blue-400">from</div>
-                                <div className="text-green-400"> "framer-motion"</div>
-
-                                <div className="mt-4">
-                                    <div className="text-blue-400">function</div>
-                                    <div className="text-yellow-400"> Component</div>
-                                    <div className="text-white">() &#123;</div>
-                                </div>
-
-                                <div className="ml-4 mt-2">
-                                    <div className="text-blue-400">return</div>
-                                    <div className="text-white"> (</div>
-                                </div>
-
-                                <div className="ml-8 mt-2">
-                                    <div className="text-white">&lt;</div>
-                                    <div className="text-red-400">motion.div</div>
-                                </div>
-
-                                <div className="ml-12 mt-1">
-                                    <div className="text-purple-400">transition</div>
-                                    <div className="text-white">=&#123;&#123; </div>
-                                    <div className="text-blue-400">ease:</div>
-                                    <div className="text-green-400"> "easeOut"</div>
-                                    <div className="text-white"> &#125;&#125;</div>
-                                </div>
-
-                                <div className="ml-12 mt-1">
-                                    <div className="text-purple-400">animate</div>
-                                    <div className="text-white">=&#123;&#123; </div>
-                                    <div className="text-blue-400">rotate:</div>
-                                    <div className="text-green-400"> 360</div>
-                                    <div className="text-white"> &#125;&#125;</div>
-                                </div>
-
-                                <div className="ml-8 mt-1">
-                                    <div className="text-white">/&gt;</div>
-                                </div>
-
-                                <div className="ml-4 mt-2">
-                                    <div className="text-white">);</div>
-                                </div>
-
-                                <div className="mt-2">
-                                    <div className="text-white">&#125;</div>
-                                </div>
+                            <div className="bg-white rounded-2xl h-[450px] flex items-center justify-center overflow-hidden shadow-lg border border-gray-200">
+                                <img 
+                                    src="/chatgpt-image.png" 
+                                    alt="ChatGPT Trading Assistant" 
+                                    className="w-full h-full object-fill"
+                                />
                             </div>
                         </div>
                     </div>
