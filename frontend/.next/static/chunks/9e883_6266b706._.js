@@ -9958,7 +9958,7 @@ __turbopack_context__.s([
 ]);
 function makeAnimationInstant(options) {
     options.duration = 0;
-    options.type === "keyframes";
+    options.type = "keyframes";
 }
 ;
 }),
@@ -11513,6 +11513,10 @@ class JSAnimation extends __TURBOPACK__imported__module__$5b$project$5d2f$fronte
     get duration() {
         return (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$motion$2d$utils$2f$dist$2f$es$2f$time$2d$conversion$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["millisecondsToSeconds"])(this.calculatedDuration);
     }
+    get iterationDuration() {
+        const { delay = 0 } = this.options || {};
+        return this.duration + (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$motion$2d$utils$2f$dist$2f$es$2f$time$2d$conversion$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["millisecondsToSeconds"])(delay);
+    }
     get time() {
         return (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$motion$2d$utils$2f$dist$2f$es$2f$time$2d$conversion$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["millisecondsToSeconds"])(this.currentTime);
     }
@@ -12016,6 +12020,10 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$
         const duration = ((_this_animation_effect = this.animation.effect) === null || _this_animation_effect === void 0 ? void 0 : (_this_animation_effect_getComputedTiming = _this_animation_effect.getComputedTiming) === null || _this_animation_effect_getComputedTiming === void 0 ? void 0 : _this_animation_effect_getComputedTiming.call(_this_animation_effect).duration) || 0;
         return (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$motion$2d$utils$2f$dist$2f$es$2f$time$2d$conversion$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["millisecondsToSeconds"])(Number(duration));
     }
+    get iterationDuration() {
+        const { delay = 0 } = this.options || {};
+        return this.duration + (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$motion$2d$utils$2f$dist$2f$es$2f$time$2d$conversion$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["millisecondsToSeconds"])(delay);
+    }
     get time() {
         return (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$motion$2d$utils$2f$dist$2f$es$2f$time$2d$conversion$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["millisecondsToSeconds"])(Number(this.animation.currentTime) || 0);
     }
@@ -12416,6 +12424,9 @@ class AsyncMotionValueAnimation extends __TURBOPACK__imported__module__$5b$proje
     }
     get duration() {
         return this.animation.duration;
+    }
+    get iterationDuration() {
+        return this.animation.iterationDuration;
     }
     get time() {
         return this.animation.time;

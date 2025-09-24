@@ -291,7 +291,7 @@ const LandingPage = ()=>{
         }
     ];
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: "min-h-screen bg-gray-50",
+        className: "min-h-screen bg-black",
         children: !showTradingPlatform ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
             className: "flex flex-col items-center justify-center px-4 py-12",
             children: [
@@ -299,7 +299,7 @@ const LandingPage = ()=>{
                     className: "".concat(__TURBOPACK__imported__module__$5b$next$5d2f$internal$2f$font$2f$google$2f$dm_sans_e6013972$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].className, " text-center mb-12"),
                     children: [
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
-                            className: "".concat(__TURBOPACK__imported__module__$5b$next$5d2f$internal$2f$font$2f$google$2f$dm_sans_e6013972$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].className, " text-6xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-amber-900 via-red-900 to-amber-800 bg-clip-text text-transparent pb-2 leading-tight"),
+                            className: "".concat(__TURBOPACK__imported__module__$5b$next$5d2f$internal$2f$font$2f$google$2f$dm_sans_e6013972$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].className, " text-6xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-amber-400 via-red-400 to-amber-300 bg-clip-text text-transparent pb-2 leading-tight"),
                             children: "Trading Made Easy"
                         }, void 0, false, {
                             fileName: "[project]/frontend/src/app/page.tsx",
@@ -307,7 +307,7 @@ const LandingPage = ()=>{
                             columnNumber: 25
                         }, ("TURBOPACK compile-time value", void 0)),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                            className: "text-xl text-gray-600 mb-8 bg-transparent",
+                            className: "text-xl mb-8 bg-transparent shimmer-text",
                             children: "Become your own Hedge Fund"
                         }, void 0, false, {
                             fileName: "[project]/frontend/src/app/page.tsx",
@@ -316,7 +316,10 @@ const LandingPage = ()=>{
                         }, ("TURBOPACK compile-time value", void 0)),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                             onClick: handleLaunchPlatform,
-                            className: "bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-full text-lg font-medium transition-colors duration-200",
+                            className: "execute-trades-btn bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-full text-lg font-medium transition-colors duration-200 border-2 bg-gradient-to-r from-amber-400 via-red-400 to-amber-300 border-transparent",
+                            style: {
+                                background: 'linear-gradient(black, black) padding-box, linear-gradient(90deg, #fbbf24, #f87171, #fcd34d) border-box'
+                            },
                             children: "Execute Trades"
                         }, void 0, false, {
                             fileName: "[project]/frontend/src/app/page.tsx",
@@ -335,53 +338,59 @@ const LandingPage = ()=>{
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "flex-1",
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "bg-gray-900 rounded-2xl p-6 h-[450px] font-mono text-sm overflow-hidden",
+                                className: "bg-gray-900 rounded-2xl p-6 h-[450px] font-mono text-sm overflow-hidden border-2 border-transparent",
+                                style: {
+                                    background: 'linear-gradient(#1f2937, #1f2937) padding-box, linear-gradient(90deg, #fbbf24, #f87171, #fcd34d) border-box'
+                                },
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$src$2f$app$2f$components$2f$ui$2f$typing$2d$animation$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TypingAnimation"], {
                                     className: "text-white text-sm font-mono text-left whitespace-pre-line",
                                     duration: 100,
                                     children: codeLines.map((line, index)=>"".concat(line.content).concat(index < codeLines.length - 1 ? "\n" : "")).join("")
                                 }, animationKey, false, {
                                     fileName: "[project]/frontend/src/app/page.tsx",
-                                    lineNumber: 83,
+                                    lineNumber: 91,
                                     columnNumber: 33
                                 }, ("TURBOPACK compile-time value", void 0))
                             }, void 0, false, {
                                 fileName: "[project]/frontend/src/app/page.tsx",
-                                lineNumber: 82,
+                                lineNumber: 85,
                                 columnNumber: 29
                             }, ("TURBOPACK compile-time value", void 0))
                         }, void 0, false, {
                             fileName: "[project]/frontend/src/app/page.tsx",
-                            lineNumber: 81,
+                            lineNumber: 84,
                             columnNumber: 25
                         }, ("TURBOPACK compile-time value", void 0)),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "flex-1",
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "bg-white rounded-2xl h-[450px] flex items-center justify-center overflow-hidden shadow-lg border border-gray-200",
+                                className: "bg-white rounded-2xl h-[450px] flex items-center justify-center overflow-hidden border-2 border-transparent",
+                                style: {
+                                    background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #fbbf24, #f87171, #fcd34d) border-box'
+                                },
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("img", {
                                     src: "/chatgpt-image.png",
                                     alt: "ChatGPT Trading Assistant",
                                     className: "w-full h-full object-fill"
                                 }, void 0, false, {
                                     fileName: "[project]/frontend/src/app/page.tsx",
-                                    lineNumber: 98,
+                                    lineNumber: 111,
                                     columnNumber: 33
                                 }, ("TURBOPACK compile-time value", void 0))
                             }, void 0, false, {
                                 fileName: "[project]/frontend/src/app/page.tsx",
-                                lineNumber: 97,
+                                lineNumber: 105,
                                 columnNumber: 29
                             }, ("TURBOPACK compile-time value", void 0))
                         }, void 0, false, {
                             fileName: "[project]/frontend/src/app/page.tsx",
-                            lineNumber: 96,
+                            lineNumber: 104,
                             columnNumber: 25
                         }, ("TURBOPACK compile-time value", void 0))
                     ]
                 }, void 0, true, {
                     fileName: "[project]/frontend/src/app/page.tsx",
-                    lineNumber: 79,
+                    lineNumber: 82,
                     columnNumber: 21
                 }, ("TURBOPACK compile-time value", void 0))
             ]
@@ -414,25 +423,25 @@ const LandingPage = ()=>{
                                                 d: "M15 19l-7-7 7-7"
                                             }, void 0, false, {
                                                 fileName: "[project]/frontend/src/app/page.tsx",
-                                                lineNumber: 118,
+                                                lineNumber: 131,
                                                 columnNumber: 37
                                             }, ("TURBOPACK compile-time value", void 0))
                                         }, void 0, false, {
                                             fileName: "[project]/frontend/src/app/page.tsx",
-                                            lineNumber: 117,
+                                            lineNumber: 130,
                                             columnNumber: 33
                                         }, ("TURBOPACK compile-time value", void 0)),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                            children: "Back to Landing"
+                                            children: "Back to Intro Page"
                                         }, void 0, false, {
                                             fileName: "[project]/frontend/src/app/page.tsx",
-                                            lineNumber: 120,
+                                            lineNumber: 133,
                                             columnNumber: 33
                                         }, ("TURBOPACK compile-time value", void 0))
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/frontend/src/app/page.tsx",
-                                    lineNumber: 113,
+                                    lineNumber: 126,
                                     columnNumber: 29
                                 }, ("TURBOPACK compile-time value", void 0)),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -440,13 +449,13 @@ const LandingPage = ()=>{
                                     children: "Portfolio Trading Platform"
                                 }, void 0, false, {
                                     fileName: "[project]/frontend/src/app/page.tsx",
-                                    lineNumber: 122,
+                                    lineNumber: 135,
                                     columnNumber: 29
                                 }, ("TURBOPACK compile-time value", void 0))
                             ]
                         }, void 0, true, {
                             fileName: "[project]/frontend/src/app/page.tsx",
-                            lineNumber: 112,
+                            lineNumber: 125,
                             columnNumber: 25
                         }, ("TURBOPACK compile-time value", void 0)),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -454,13 +463,13 @@ const LandingPage = ()=>{
                             children: "Powered by Flask Backend"
                         }, void 0, false, {
                             fileName: "[project]/frontend/src/app/page.tsx",
-                            lineNumber: 124,
+                            lineNumber: 137,
                             columnNumber: 25
                         }, ("TURBOPACK compile-time value", void 0))
                     ]
                 }, void 0, true, {
                     fileName: "[project]/frontend/src/app/page.tsx",
-                    lineNumber: 111,
+                    lineNumber: 124,
                     columnNumber: 21
                 }, ("TURBOPACK compile-time value", void 0)),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -472,18 +481,18 @@ const LandingPage = ()=>{
                         sandbox: "allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"
                     }, void 0, false, {
                         fileName: "[project]/frontend/src/app/page.tsx",
-                        lineNumber: 131,
+                        lineNumber: 144,
                         columnNumber: 25
                     }, ("TURBOPACK compile-time value", void 0))
                 }, void 0, false, {
                     fileName: "[project]/frontend/src/app/page.tsx",
-                    lineNumber: 130,
+                    lineNumber: 143,
                     columnNumber: 21
                 }, ("TURBOPACK compile-time value", void 0))
             ]
         }, void 0, true, {
             fileName: "[project]/frontend/src/app/page.tsx",
-            lineNumber: 109,
+            lineNumber: 122,
             columnNumber: 17
         }, ("TURBOPACK compile-time value", void 0))
     }, void 0, false, {

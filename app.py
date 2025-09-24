@@ -110,7 +110,7 @@ IMPORTANT:
 - If asked a specific question, answer it directly and concisely
 - Provide educational content and explain the reasoning behind your advice
 
-For casual conversation, respond naturally and warmly.
+For casual conversation, respond naturally and warmly but encourage them to ask you questions about their portfolio.
 For general trading advice, provide educational and practical guidance.
 For portfolio analysis, format responses with clear headings, bullet points, and specific recommendations."""
     

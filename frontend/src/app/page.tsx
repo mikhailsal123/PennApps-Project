@@ -56,20 +56,23 @@ const LandingPage = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-black">
             {!showTradingPlatform ? (
                 <div className="flex flex-col items-center justify-center px-4 py-12">
                     {/* Header Section */}
                     <div className={`${dmSans.className} text-center mb-12`}>
                         <h1
-                            className={`${dmSans.className} text-6xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-amber-900 via-red-900 to-amber-800 bg-clip-text text-transparent pb-2 leading-tight`}
+                            className={`${dmSans.className} text-6xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-amber-400 via-red-400 to-amber-300 bg-clip-text text-transparent pb-2 leading-tight`}
                         >
                             Trading Made Easy
                         </h1>
-                        <p className="text-xl text-gray-600 mb-8 bg-transparent">Become your own Hedge Fund</p>
+                        <p className="text-xl mb-8 bg-transparent shimmer-text">Become your own Hedge Fund</p>
                         <button
                             onClick={handleLaunchPlatform}
-                            className="bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-full text-lg font-medium transition-colors duration-200"
+                            className="execute-trades-btn bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-full text-lg font-medium transition-colors duration-200 border-2 bg-gradient-to-r from-amber-400 via-red-400 to-amber-300 border-transparent"
+                            style={{
+                                background: 'linear-gradient(black, black) padding-box, linear-gradient(90deg, #fbbf24, #f87171, #fcd34d) border-box'
+                            }}
                         >
                             Execute Trades
                         </button>
@@ -79,7 +82,12 @@ const LandingPage = () => {
                     <div className="flex flex-col md:flex-row gap-8 max-w-6xl w-full">
                         {/* Left Code Block with Typing Animation */}
                         <div className="flex-1">
-                            <div className="bg-gray-900 rounded-2xl p-6 h-[450px] font-mono text-sm overflow-hidden">
+                            <div 
+                                className="bg-gray-900 rounded-2xl p-6 h-[450px] font-mono text-sm overflow-hidden border-2 border-transparent"
+                                style={{
+                                    background: 'linear-gradient(#1f2937, #1f2937) padding-box, linear-gradient(90deg, #fbbf24, #f87171, #fcd34d) border-box'
+                                }}
+                            >
                                 <TypingAnimation
                                     key={animationKey}
                                     className="text-white text-sm font-mono text-left whitespace-pre-line"
@@ -94,7 +102,12 @@ const LandingPage = () => {
 
                         {/* Right Image Block - ChatGPT Image */}
                         <div className="flex-1">
-                            <div className="bg-white rounded-2xl h-[450px] flex items-center justify-center overflow-hidden shadow-lg border border-gray-200">
+                            <div 
+                                className="bg-white rounded-2xl h-[450px] flex items-center justify-center overflow-hidden border-2 border-transparent"
+                                style={{
+                                    background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #fbbf24, #f87171, #fcd34d) border-box'
+                                }}
+                            >
                                 <img 
                                     src="/chatgpt-image.png" 
                                     alt="ChatGPT Trading Assistant" 
