@@ -7,7 +7,6 @@ BACKEND_PID=$!
 # Wait for backend to start
 sleep 5
 
-# Install Next.js dependencies and start frontend
+# Start Next.js frontend on port 3000
 cd frontend
-npm install
-PORT=3000 npm start
+npm start
