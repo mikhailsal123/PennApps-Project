@@ -4,7 +4,7 @@
 
 1. **Go to [railway.app](https://railway.app)** and sign up with GitHub
 2. **Click "New Project"** → **"Deploy from GitHub repo"**
-3. **Select your repository**: `mikhailsal123/TradeSphere.ai`
+3. **Select your repository**: `mikhailsal123/PennApps-Project`
 4. **Railway will auto-detect** it's a Python project
 5. **Wait for deployment** (2-3 minutes)
 6. **Copy the URL** (e.g., `https://tradesphere-production.railway.app`)
@@ -14,7 +14,7 @@
 
 1. **Go to [render.com](https://render.com)** and sign up with GitHub
 2. **Click "New"** → **"Web Service"**
-3. **Connect repository**: `mikhailsal123/TradeSphere.ai`
+3. **Connect repository**: `mikhailsal123/PennApps-Project`
 4. **Configure**:
    - Name: `tradesphere-backend`
    - Environment: `Python 3`
