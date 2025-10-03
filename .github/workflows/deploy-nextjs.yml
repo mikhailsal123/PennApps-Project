@@ -40,6 +40,7 @@ jobs:
       run: |
         cd frontend
         npm run build
+        ls -la out/
         
     - name: Setup Pages
       uses: actions/configure-pages@v4
