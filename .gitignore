@@ -7,7 +7,7 @@ backend/node_modules/
 
 # Next.js
 frontend/.next/
-frontend/out/
+# frontend/out/  # Commented out for GitHub Pages deployment
 
 # Build outputs
 dist/
