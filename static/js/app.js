@@ -46,6 +46,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize duration limits
     updateDurationLimits();
     
+    // Add real-time portfolio validation
+    initializePortfolioValidation();
+    
     // Plot type buttons
     document.querySelectorAll('[data-plot-type]').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -61,12 +64,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
 });
 
-function startSimulation(e) {
+async function startSimulation(e) {
     e.preventDefault();
     console.log('startSimulation called');
     
     const formData = collectFormData();
     console.log('Form data collected:', formData);
+    
+    // Validate all tickers immediately before form validation
+    await validateAllTickers();
     
     if (!validateForm(formData)) {
         console.log('Form validation failed');
@@ -476,7 +482,6 @@ function collectFormData() {
     
     const formData = {
         initial_cash: parseFloat(document.getElementById('initialCash').value),
-        start_date: document.getElementById('startDate').value,
         duration_days: parseInt(document.getElementById('durationDays').value),
         trading_frequency: document.getElementById('tradingFrequency').value,
         tickers: tickers,
@@ -498,15 +503,279 @@ function validateForm(data) {
         return false;
     }
     
+    // Check if all tickers are valid
+    const invalidTickers = [];
+    const unvalidatedTickers = [];
+    
+    const tickerInputs = document.querySelectorAll('#tickersContainer input[type="text"]');
+    tickerInputs.forEach(input => {
+        if (input.value.trim()) {
+            if (input.classList.contains('is-invalid')) {
+                invalidTickers.push(input.value.toUpperCase());
+            } else if (!input.classList.contains('is-valid')) {
+                unvalidatedTickers.push(input.value.toUpperCase());
+            }
+        }
+    });
+    
+    // Check if all tickers in trading rules are valid
+    const tradingRuleTickerInputs = document.querySelectorAll('#tradingRulesContainer .ticker-select');
+    tradingRuleTickerInputs.forEach(select => {
+        if (select.value.trim()) {
+            if (select.classList.contains('is-invalid')) {
+                invalidTickers.push(select.value.toUpperCase());
+            } else if (!select.classList.contains('is-valid')) {
+                unvalidatedTickers.push(select.value.toUpperCase());
+            }
+        }
+    });
+    
+    // If there are unvalidated tickers, validate them first
+    if (unvalidatedTickers.length > 0) {
+        alert(`Please wait for ticker validation to complete for: ${unvalidatedTickers.join(', ')}.`);
+        return false;
+    }
+    
+    if (invalidTickers.length > 0) {
+        console.log('Invalid tickers found:', invalidTickers);
+        console.log('Ticker inputs:', tickerInputs);
+        console.log('Trading rule inputs:', tradingRuleTickerInputs);
+        alert(`Invalid ticker symbols: ${invalidTickers.join(', ')}. Please enter valid ticker symbols that exist in Yahoo Finance.`);
+        return false;
+    }
+    
     // Dynamic validation based on trading frequency
-    const maxDays = data.trading_frequency === 'intraday' ? 60 : 365;
+    let maxDays = 365;
+    if (data.trading_frequency === '1m') {
+        maxDays = 7;
+    } else if (['5m', '15m', '60m'].includes(data.trading_frequency)) {
+        maxDays = 60;
+    }
+    
     if (data.duration_days < 1 || data.duration_days > maxDays) {
-        const frequencyText = data.trading_frequency === 'intraday' ? 'intraday' : 'daily';
+        const frequencyText = data.trading_frequency === '1m' ? '1-minute' : 
+                             data.trading_frequency === '5m' ? '5-minute' :
+                             data.trading_frequency === '15m' ? '15-minute' :
+                             data.trading_frequency === '60m' ? '60-minute' : 'daily';
         alert(`Duration must be between 1 and ${maxDays} days for ${frequencyText} trading.`);
         return false;
     }
     
+    // Validate portfolio value doesn't exceed initial cash
+    const portfolioValidation = validatePortfolioValue(data);
+    if (!portfolioValidation.isValid) {
+        alert(portfolioValidation.message);
+        return false;
+    }
+    
     return true;
+}
+
+function validatePortfolioValue(data) {
+    const initialCash = data.initial_cash;
+    let totalValue = 0;
+    let issues = [];
+    
+    // Check initial positions
+    data.tickers.forEach(ticker => {
+        if (ticker.shares && ticker.shares > 0) {
+            // Estimate value using average stock prices (rough estimates)
+            const estimatedPrice = getEstimatedStockPrice(ticker.ticker);
+            const positionValue = estimatedPrice * ticker.shares;
+            totalValue += positionValue;
+            
+            if (positionValue > initialCash * 0.5) {
+                issues.push(`${ticker.ticker}: ${ticker.shares} shares ≈ $${positionValue.toLocaleString()} (${(positionValue/initialCash*100).toFixed(1)}% of portfolio)`);
+            }
+        }
+    });
+    
+    // Check trading rules for potential large purchases
+    data.trading_rules.forEach(rule => {
+        if (rule.action === 'buy' && rule.shares && rule.threshold) {
+            const estimatedPrice = getEstimatedStockPrice(rule.ticker);
+            const potentialCost = estimatedPrice * rule.shares;
+            
+            if (potentialCost > initialCash * 0.3) {
+                issues.push(`Buy rule for ${rule.ticker}: ${rule.shares} shares ≈ $${potentialCost.toLocaleString()} (${(potentialCost/initialCash*100).toFixed(1)}% of portfolio)`);
+            }
+        }
+    });
+    
+    // Check if total estimated value exceeds initial cash
+    if (totalValue > initialCash) {
+        return {
+            isValid: false,
+            message: `Portfolio value ($${totalValue.toLocaleString()}) exceeds initial cash ($${initialCash.toLocaleString()}). Please reduce position sizes or increase initial cash.`
+        };
+    }
+    
+    return {
+        isValid: true,
+        message: 'Portfolio validation passed.'
+    };
+}
+
+function getEstimatedStockPrice(ticker) {
+    // Rough estimates for common stocks (in USD)
+    const priceEstimates = {
+        'AAPL': 150, 'MSFT': 300, 'GOOGL': 140, 'AMZN': 120, 'TSLA': 200,
+        'NVDA': 800, 'META': 300, 'NFLX': 400, 'GOOG': 140, 'BRK.A': 500000,
+        'BRK.B': 350, 'JPM': 150, 'JNJ': 160, 'V': 250, 'PG': 150,
+        'UNH': 500, 'HD': 300, 'MA': 400, 'DIS': 100, 'PYPL': 60
+    };
+    
+    return priceEstimates[ticker] || 100; // Default to $100 if unknown
+}
+
+function updateDurationLimits() {
+    const tradingFrequency = document.getElementById('tradingFrequency').value;
+    const durationSlider = document.getElementById('durationDays');
+    const durationUnit = document.getElementById('durationUnit');
+    const minDuration = document.getElementById('minDuration');
+    const maxDuration = document.getElementById('maxDuration');
+    const durationMidpoint = document.getElementById('durationMidpoint');
+    const frequencyHelp = document.getElementById('frequencyHelp');
+    const dateRangeInfo = document.getElementById('dateRangeInfo');
+    
+    const intervalConfigs = {
+        'daily': {
+            maxDays: 365,
+            intervalMinutes: 1440,
+            description: 'Daily: 1-day intervals, up to 365 days (1 trade per day)',
+            timeStepMinutes: 1440
+        },
+        '1m': {
+            maxDays: 7,
+            intervalMinutes: 1,
+            description: '1-Minute: Real-time simulation, up to 7 days (market hours only: 9:30 AM - 4:00 PM)',
+            timeStepMinutes: 1
+        },
+        '5m': {
+            maxDays: 60,
+            intervalMinutes: 5,
+            description: '5-Minute: High frequency trading, up to 60 days (market hours only: 9:30 AM - 4:00 PM)',
+            timeStepMinutes: 5
+        },
+        '15m': {
+            maxDays: 60,
+            intervalMinutes: 15,
+            description: '15-Minute: Short-term analysis, up to 60 days (market hours only: 9:30 AM - 4:00 PM)',
+            timeStepMinutes: 15
+        },
+        '60m': {
+            maxDays: 60,
+            intervalMinutes: 60,
+            description: '60-Minute: Hourly intervals, up to 60 days (market hours only: 9:30 AM - 4:00 PM)',
+            timeStepMinutes: 60
+        }
+    };
+    
+    const config = intervalConfigs[tradingFrequency];
+    
+    if (config) {
+        durationSlider.max = config.maxDays;
+        durationUnit.textContent = 'days';
+        minDuration.textContent = '1 day';
+        maxDuration.textContent = `${config.maxDays} days`;
+        durationMidpoint.textContent = Math.ceil(config.maxDays / 2);
+        frequencyHelp.textContent = config.description;
+        
+        updateDateRangeInfo(tradingFrequency, config.maxDays);
+        
+        if (parseInt(durationSlider.value) > config.maxDays) {
+            durationSlider.value = config.maxDays;
+            document.getElementById('durationValue').textContent = config.maxDays;
+        }
+    }
+}
+
+function updateDateRangeInfo(tradingFrequency, maxDays) {
+    const dateRangeInfo = document.getElementById('dateRangeInfo');
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setDate(now.getDate() - maxDays);
+    
+    const startDateStr = startDate.toLocaleDateString();
+    const endDateStr = now.toLocaleDateString();
+    
+    const timeDiff = now.getTime() - startDate.getTime();
+    const actualDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    
+    dateRangeInfo.innerHTML = `
+        <strong>${startDateStr}</strong> to <strong>${endDateStr}</strong> 
+        <br>
+        <small class="text-muted">(~${actualDays} days, auto-calculated from current time)</small>
+    `;
+}
+
+function initializePortfolioValidation() {
+    // Add event listeners to ticker inputs for real-time validation
+    const tickersContainer = document.getElementById('tickersContainer');
+    if (tickersContainer) {
+        // Use event delegation for dynamic content
+        tickersContainer.addEventListener('input', function(e) {
+            if (e.target.type === 'number' && e.target.placeholder === 'Shares') {
+                validatePortfolioInRealTime();
+            }
+        });
+    }
+    
+    // Add event listener to initial cash input
+    const initialCashInput = document.getElementById('initialCash');
+    if (initialCashInput) {
+        initialCashInput.addEventListener('input', validatePortfolioInRealTime);
+    }
+    
+    // Add event listeners to trading rules
+    const tradingRulesContainer = document.getElementById('tradingRulesContainer');
+    if (tradingRulesContainer) {
+        tradingRulesContainer.addEventListener('input', function(e) {
+            if (e.target.type === 'number') {
+                validatePortfolioInRealTime();
+            }
+        });
+    }
+}
+
+function validatePortfolioInRealTime() {
+    // Debounce the validation to avoid too many calls
+    clearTimeout(window.portfolioValidationTimeout);
+    window.portfolioValidationTimeout = setTimeout(() => {
+        try {
+            const formData = collectFormData();
+            const validation = validatePortfolioValue(formData);
+            
+            // Update UI to show validation status
+            updatePortfolioValidationUI(validation);
+        } catch (error) {
+            console.log('Portfolio validation error:', error);
+        }
+    }, 500);
+}
+
+function updatePortfolioValidationUI(validation) {
+    // Find or create validation status element
+    let statusElement = document.getElementById('portfolioValidationStatus');
+    if (!statusElement) {
+        statusElement = document.createElement('div');
+        statusElement.id = 'portfolioValidationStatus';
+        statusElement.className = 'alert alert-info mt-2';
+        
+        // Insert after the tickers container
+        const tickersContainer = document.getElementById('tickersContainer');
+        if (tickersContainer) {
+            tickersContainer.parentNode.insertBefore(statusElement, tickersContainer.nextSibling);
+        }
+    }
+    
+    if (validation.isValid) {
+        statusElement.className = 'alert alert-success mt-2';
+        statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Portfolio validation passed';
+    } else {
+        statusElement.className = 'alert alert-warning mt-2';
+        statusElement.innerHTML = `<i class="fas fa-exclamation-triangle" title="${validation.message}"></i> ${validation.message}`;
+    }
 }
 
 function resetForm() {
@@ -555,7 +824,7 @@ function addTradingRule() {
     ruleInput.title = 'Click to toggle one-time execution mode';
     ruleInput.innerHTML = `
         <div class="input-group">
-            <select class="form-select ticker-select">
+            <select class="form-select ticker-select" onchange="validateTradingRuleTicker(this)">
                 <option value="NVDA">NVDA</option>
                 <option value="AAPL">AAPL</option>
                 <option value="TSLA">TSLA</option>
@@ -586,21 +855,122 @@ function addTradingRule() {
 
 function validateTicker(input) {
     const ticker = input.value.toUpperCase().trim();
-    const isValid = /^[A-Z0-9.]{1,10}$/.test(ticker) && ticker.length >= 1;
+    const isValidFormat = /^[A-Z0-9.]{1,10}$/.test(ticker) && ticker.length >= 1;
     
     // Remove existing validation classes
-    input.classList.remove('is-valid', 'is-invalid');
+    input.classList.remove('is-valid', 'is-invalid', 'is-warning');
     
     if (ticker.length === 0) {
         // No validation styling for empty input
+        input.title = '';
         return;
-    } else if (isValid) {
-        input.classList.add('is-valid');
-        input.title = `Valid ticker symbol: ${ticker}`;
-    } else {
+    } else if (!isValidFormat) {
         input.classList.add('is-invalid');
         input.title = 'Invalid ticker format. Use 1-10 uppercase letters/numbers (e.g., AAPL, TSLA, BRK.A)';
+        return;
     }
+    
+    // Show loading state
+    input.classList.add('is-warning');
+    input.title = 'Checking ticker validity...';
+    
+    // Validate ticker against Yahoo Finance
+    validateTickerWithAPI(ticker, input);
+}
+
+function validateTickerWithAPI(ticker, inputElement) {
+    // Debounce API calls to avoid too many requests
+    clearTimeout(window.tickerValidationTimeout);
+    window.tickerValidationTimeout = setTimeout(() => {
+        fetch(`/validate_ticker/${ticker}`)
+            .then(response => response.json())
+            .then(data => {
+                // Remove loading state
+                inputElement.classList.remove('is-warning');
+                
+                if (data.valid) {
+                    inputElement.classList.add('is-valid');
+                    inputElement.title = `Valid ticker: ${data.name} (${data.exchange})`;
+                    
+                    // Update the ticker value to the validated version
+                    inputElement.value = data.ticker;
+                } else {
+                    inputElement.classList.add('is-invalid');
+                    inputElement.title = data.error || 'Ticker not found in Yahoo Finance database';
+                }
+                
+                // Trigger portfolio validation after ticker validation
+                validatePortfolioInRealTime();
+            })
+            .catch(error => {
+                console.error('Ticker validation error:', error);
+                inputElement.classList.remove('is-warning');
+                inputElement.classList.add('is-invalid');
+                inputElement.title = 'Error validating ticker. Please try again.';
+            });
+    }, 1000); // 1 second delay to avoid too many API calls
+}
+
+async function validateAllTickers() {
+    const tickerInputs = document.querySelectorAll('#tickersContainer input[type="text"]');
+    const tradingRuleTickerInputs = document.querySelectorAll('#tradingRulesContainer .ticker-select');
+    
+    const allInputs = [...tickerInputs, ...tradingRuleTickerInputs];
+    const validationPromises = [];
+    
+    allInputs.forEach(input => {
+        if (input.value.trim() && !input.classList.contains('is-valid') && !input.classList.contains('is-invalid')) {
+            validationPromises.push(validateTickerWithAPIImmediate(input.value.trim(), input));
+        }
+    });
+    
+    if (validationPromises.length > 0) {
+        await Promise.all(validationPromises);
+    }
+}
+
+function validateTickerWithAPIImmediate(ticker, inputElement) {
+    return new Promise((resolve) => {
+        fetch(`/validate_ticker/${ticker}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.valid) {
+                    inputElement.classList.remove('is-warning', 'is-invalid');
+                    inputElement.classList.add('is-valid');
+                    inputElement.title = `Valid ticker: ${data.name} (${data.exchange})`;
+                    inputElement.value = data.ticker;
+                } else {
+                    inputElement.classList.remove('is-warning', 'is-valid');
+                    inputElement.classList.add('is-invalid');
+                    inputElement.title = data.error || 'Ticker not found in Yahoo Finance database';
+                }
+                resolve();
+            })
+            .catch(error => {
+                console.error('Ticker validation error:', error);
+                inputElement.classList.remove('is-warning', 'is-valid');
+                inputElement.classList.add('is-invalid');
+                inputElement.title = 'Error validating ticker. Please try again.';
+                resolve();
+            });
+    });
+}
+
+function validateTradingRuleTicker(selectElement) {
+    const ticker = selectElement.value.toUpperCase().trim();
+    
+    // Remove existing validation classes
+    selectElement.classList.remove('is-valid', 'is-invalid', 'is-warning');
+    
+    if (ticker.length === 0) {
+        return;
+    }
+    
+    // Show loading state
+    selectElement.classList.add('is-warning');
+    
+    // Validate ticker against Yahoo Finance
+    validateTickerWithAPI(ticker, selectElement);
 }
 
 function removeTradingRule(button) {

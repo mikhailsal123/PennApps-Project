@@ -21,6 +21,7 @@ class Portfolio:
         else:
             self.past_trades = []
         
+        self.cash = cash     # Starting cash
         self.original_value = cash  #keep track of original value fo the portfolio
         self.change_over_time = {}  # {timestamp: portfolio_value}
         
@@ -29,6 +30,25 @@ class Portfolio:
         self.hedge_margin_available = cash * 0.5  # 50% of portfolio can be used for hedge margin
         self.hedge_trades = []  # Track all hedge transactions
         self.short_positions = {}  # Track short positions for hedging
+    
+    def get_total_portfolio_value(self, timestamp):
+        """Get the total portfolio value (cash + positions) at a given timestamp"""
+        return self.get_value(timestamp)
+    
+    def can_afford_purchase(self, price, shares, timestamp):
+        """
+        Check if the portfolio can afford a purchase.
+        Simple logic: only check if we have enough cash available.
+        The portfolio value constraint is enforced by the simulation logic.
+        Returns (can_afford, reason)
+        """
+        cost = price * shares
+        
+        # Check if we have enough cash
+        if self.cash < cost:
+            return False, f"Insufficient cash. Need ${cost:,.2f}, have ${self.cash:,.2f}"
+        
+        return True, "Purchase allowed"
     
     def get_value(self, timestamp):
         position_val = self.cash
@@ -169,24 +189,82 @@ class Portfolio:
         print(f"Current Value: ${self.get_value(timestamp):,.2f}")
 
     def buy(self, ticker, price, shares, timestamp):
-
+        """
+        Buy shares of a stock with cash validation to prevent exceeding initial portfolio value.
+        """
         sd = StockData(ticker, self.var1, self.var2)
         sd.curtime = timestamp  # Set the current time for the stock data
         market_price = sd.get_price()
         if(market_price is None):
+            print(f"Market closed - cannot get price for {ticker}")
             return
 
         if(market_price > price):
-            print(f"Order refused. Market Price higher than {price}")
+            print(f"Order refused. Market Price ${market_price:.2f} higher than limit price ${price:.2f}")
             return 
-        price = min(price, market_price)
-        cost = price * shares
-        if self.cash >= cost:
-            self.cash -= cost
-            self.positions[ticker] = self.positions.get(ticker, 0) + shares
-            self.past_trades.append({'action': 'BUY', 'ticker': ticker, 'price': price, 'shares': shares, 'timestamp': timestamp})
-        else:
-            print(f"Not enough cash to buy {shares} shares of {ticker}")
+        
+        # Use the lower of limit price or market price
+        execution_price = min(price, market_price)
+        
+        # Check if we can afford this purchase
+        can_afford, reason = self.can_afford_purchase(execution_price, shares, timestamp)
+        if not can_afford:
+            print(f"Purchase denied: {reason}")
+            return
+        
+        # Execute the purchase
+        cost = execution_price * shares
+        self.cash -= cost
+        self.positions[ticker] = self.positions.get(ticker, 0) + shares
+        
+        # Record the trade
+        trade_record = {
+            'action': 'BUY', 
+            'ticker': ticker, 
+            'price': execution_price, 
+            'shares': shares, 
+            'total_value': cost,
+            'timestamp': timestamp,
+            'cash_after': self.cash
+        }
+        self.past_trades.append(trade_record)
+        
+        print(f"✅ Bought {shares} shares of {ticker} at ${execution_price:.2f} (Total: ${cost:,.2f})")
+        print(f"   Cash remaining: ${self.cash:,.2f}")
+        print(f"   Portfolio value: ${self.get_total_portfolio_value(timestamp):,.2f}")
+    
+    def get_portfolio_stats(self, timestamp):
+        """
+        Get comprehensive portfolio statistics including cash validation info.
+        """
+        current_value = self.get_total_portfolio_value(timestamp)
+        cash_ratio = (self.cash / current_value * 100) if current_value > 0 else 0
+        positions_value = current_value - self.cash
+        
+        stats = {
+            'initial_cash': self.original_value,
+            'current_cash': self.cash,
+            'positions_value': positions_value,
+            'total_value': current_value,
+            'cash_ratio': cash_ratio,
+            'can_trade': self.cash > 0,
+            'max_purchase_power': self.cash,
+            'total_trades': len(self.past_trades)
+        }
+        
+        return stats
+    
+    def is_portfolio_valid(self, timestamp):
+        """
+        Check if the portfolio is in a valid state (not exceeding initial cash).
+        Returns (is_valid, message)
+        """
+        current_value = self.get_total_portfolio_value(timestamp)
+        
+        if current_value > self.original_value:
+            return False, f"Portfolio value (${current_value:,.2f}) exceeds initial cash (${self.original_value:,.2f})"
+        
+        return True, "Portfolio is within valid limits"
     
     def sell(self, ticker, price, shares, timestamp):
         sd = StockData(ticker, self.var1, self.var2)

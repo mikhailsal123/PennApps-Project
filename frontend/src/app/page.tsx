@@ -142,7 +142,10 @@ const LandingPage = () => {
                     {/* iframe container */}
                     <div className="flex-1 bg-gray-100">
                         <iframe
-                            src="http://localhost:5002"
+                            src={process.env.NODE_ENV === 'production' 
+                                ? "https://your-backend-url.vercel.app" 
+                                : "http://localhost:5002"
+                            }
                             className="w-full h-full border-0"
                             title="Portfolio Trading Platform"
                             sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"

@@ -673,16 +673,26 @@ class SimulationManager:
                                         # Check if we have enough cash to buy
                                         cost = price * rule['shares']
                                         if port.cash >= cost:
-                                            port.buy(ticker, price + 1, rule['shares'], currtime)  # Add small buffer to ensure purchase
-                                            trades_executed.append(f"Bought {rule['shares']} {ticker} @ ${price:.2f}")
-                                            rule_executed = True
+                                            # Additional check: ensure portfolio value doesn't exceed initial cash
+                                            current_portfolio_value = port.get_total_portfolio_value(currtime)
+                                            if current_portfolio_value <= port.original_value:
+                                                port.buy(ticker, price + 1, rule['shares'], currtime)  # Add small buffer to ensure purchase
+                                                trades_executed.append(f"Bought {rule['shares']} {ticker} @ ${price:.2f}")
+                                                rule_executed = True
+                                            else:
+                                                print(f"DEBUG: Buy order skipped - portfolio value (${current_portfolio_value:,.2f}) exceeds initial cash (${port.original_value:,.2f})")
                                     elif rule['condition'] == 'less_than' and price < rule['threshold']:
                                         # Check if we have enough cash to buy
                                         cost = price * rule['shares']
                                         if port.cash >= cost:
-                                            port.buy(ticker, price + 1, rule['shares'], currtime)  # Add small buffer to ensure purchase
-                                            trades_executed.append(f"Bought {rule['shares']} {ticker} @ ${price:.2f}")
-                                            rule_executed = True
+                                            # Additional check: ensure portfolio value doesn't exceed initial cash
+                                            current_portfolio_value = port.get_total_portfolio_value(currtime)
+                                            if current_portfolio_value <= port.original_value:
+                                                port.buy(ticker, price + 1, rule['shares'], currtime)  # Add small buffer to ensure purchase
+                                                trades_executed.append(f"Bought {rule['shares']} {ticker} @ ${price:.2f}")
+                                                rule_executed = True
+                                            else:
+                                                print(f"DEBUG: Buy order skipped - portfolio value (${current_portfolio_value:,.2f}) exceeds initial cash (${port.original_value:,.2f})")
                                 
                                 # If rule executed and it's a one-time rule, mark it for removal
                                 if rule_executed and rule.get('one_time', False):
@@ -1218,6 +1228,41 @@ class SimulationManager:
 def index():
     """Main page"""
     return render_template('index.html')
+
+@app.route('/validate_ticker/<ticker>')
+def validate_ticker(ticker):
+    """Validate if a ticker symbol exists in Yahoo Finance"""
+    try:
+        import yfinance as yf
+        
+        # Try to fetch basic info for the ticker
+        stock = yf.Ticker(ticker.upper())
+        info = stock.info
+        
+        # Check if we got valid data (not empty dict)
+        if info and len(info) > 1:  # More than just basic metadata
+            # Check if it has essential fields that indicate a valid stock
+            if 'symbol' in info or 'shortName' in info or 'longName' in info:
+                return jsonify({
+                    'valid': True,
+                    'ticker': ticker.upper(),
+                    'name': info.get('shortName', info.get('longName', ticker.upper())),
+                    'exchange': info.get('exchange', 'Unknown')
+                })
+        
+        # If we get here, the ticker is not valid
+        return jsonify({
+            'valid': False,
+            'ticker': ticker.upper(),
+            'error': 'Ticker not found in Yahoo Finance database'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'valid': False,
+            'ticker': ticker.upper(),
+            'error': f'Error validating ticker: {str(e)}'
+        })
 
 @app.route('/start_simulation', methods=['POST'])
 def start_simulation():
