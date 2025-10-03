@@ -10,7 +10,7 @@
     "backend:dev": "python3 app.py",
     "backend:start": "python3 app.py"
   },
-  "devDependencies": {
+  "dependencies": {
     "concurrently": "^8.2.2"
   }
 }
