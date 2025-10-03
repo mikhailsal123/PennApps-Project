@@ -1,13 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 body {
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-weight: 400;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    color: #ffffff;
 }
 
 /* Typography improvements */
@@ -16,15 +15,11 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
     letter-spacing: -0.025em;
     line-height: 1.2;
-    background: linear-gradient(90deg, #fbbf24, #f87171, #fcd34d);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
 }
 
 .form-label {
     font-weight: 500;
-    color: #e5e7eb;
+    color: #374151;
     margin-bottom: 8px;
     font-size: 14px;
     line-height: 1.4;
@@ -32,38 +27,11 @@ h1, h2, h3, h4, h5, h6 {
 
 small {
     font-weight: 400;
-    color: #9ca3af;
+    color: #6b7280;
     font-size: 13px;
     line-height: 1.4;
 }
 
-/* Gradient button styling to match landing page */
-.btn-primary {
-    background: linear-gradient(90deg, #fbbf24, #f87171, #fcd34d);
-    border: none;
-    color: #000000;
-    font-weight: 600;
-    transition: all 0.3s ease;
-}
-
-.btn-primary:hover {
-    background: linear-gradient(90deg, #f59e0b, #ef4444, #f59e0b);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(251, 191, 36, 0.3);
-}
-
-.btn-secondary {
-    background: transparent;
-    border: 2px solid;
-    border-image: linear-gradient(90deg, #fbbf24, #f87171, #fcd34d) 1;
-    color: #ffffff;
-    font-weight: 500;
-}
-
-.btn-secondary:hover {
-    background: linear-gradient(90deg, #fbbf24, #f87171, #fcd34d);
-    color: #000000;
-}
 
 /* Improved spacing for form elements */
 .mb-3 {
@@ -96,19 +64,6 @@ small {
     padding: 24px;
 }
 
-/* Card styling for dark theme */
-.card {
-    background: rgba(45, 45, 45, 0.8);
-    border: 1px solid rgba(251, 191, 36, 0.2);
-    border-radius: 12px;
-    backdrop-filter: blur(10px);
-}
-
-.card-header {
-    background: linear-gradient(90deg, rgba(251, 191, 36, 0.1), rgba(248, 113, 113, 0.1), rgba(252, 211, 77, 0.1));
-    border-bottom: 1px solid rgba(251, 191, 36, 0.3);
-    color: #ffffff;
-}
 
 /* Alert spacing improvements */
 .alert {
