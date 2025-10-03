@@ -1,0 +1,16 @@
+{
+  "name": "tradesphere-fullstack",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"npm run frontend:dev\" \"npm run backend:dev\"",
+    "build": "cd frontend && npm ci && npm run build",
+    "start": "concurrently \"npm run frontend:start\" \"npm run backend:start\"",
+    "frontend:dev": "cd frontend && npm run dev",
+    "frontend:start": "cd frontend && npm start",
+    "backend:dev": "python3 app.py",
+    "backend:start": "python3 app.py"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
