@@ -143,7 +143,7 @@ const LandingPage = () => {
                     <div className="flex-1 bg-gray-100">
                         <iframe
                             src={process.env.NODE_ENV === 'production' 
-                                ? "https://your-railway-backend-url.railway.app" 
+                                ? "https://tradesphere-ai.onrender.com" 
                                 : "http://localhost:5002"
                             }
                             className="w-full h-full border-0"
