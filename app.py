@@ -1229,77 +1229,31 @@ def index():
     """Main page"""
     return render_template('index.html')
 
-@app.route('/health')
-def health_check():
-    """Health check endpoint for deployment monitoring"""
-    return jsonify({
-        'status': 'healthy',
-        'service': 'TradeSphere Backend',
-        'version': '1.0.0',
-        'timestamp': datetime.now().isoformat()
-    })
-
 @app.route('/test_yfinance')
 def test_yfinance():
-    """Test endpoint to check if yfinance is working"""
+    """Test endpoint to check yfinance version and functionality"""
     try:
         import yfinance as yf
-        import time
         
-        print("Testing yfinance functionality...")
-        
-        # Test with multiple known good tickers
-        test_tickers = ["AAPL", "NVDA", "AMZN", "GOOG"]
-        results = {}
-        
-        for ticker in test_tickers:
-            try:
-                print(f"Testing {ticker}...")
-                stock = yf.Ticker(ticker)
-                info = stock.info
-                
-                results[ticker] = {
-                    'info_available': bool(info and len(info) > 0),
-                    'info_keys_count': len(info) if info else 0,
-                    'has_name': any(key in info for key in ['shortName', 'longName', 'symbol']) if info else False,
-                    'has_price': any(key in info for key in ['currentPrice', 'regularMarketPrice', 'previousClose']) if info else False,
-                    'sample_keys': list(info.keys())[:5] if info else []
-                }
-                
-                # Also test historical data
-                try:
-                    hist = stock.history(period="1d", timeout=5)
-                    results[ticker]['historical_data'] = not hist.empty and len(hist) > 0
-                except Exception as e:
-                    results[ticker]['historical_data'] = False
-                    results[ticker]['historical_error'] = str(e)
-                
-                time.sleep(0.5)  # Small delay between requests
-                
-            except Exception as e:
-                results[ticker] = {
-                    'error': str(e),
-                    'info_available': False
-                }
+        # Test with a known good ticker
+        stock = yf.Ticker("AAPL")
+        info = stock.info
         
         return jsonify({
             'status': 'success',
-            'yfinance_working': True,
-            'test_results': results,
-            'environment': {
-                'python_version': __import__('sys').version,
-                'yfinance_version': yf.__version__ if hasattr(yf, '__version__') else 'unknown'
-            }
+            'yfinance_version': yf.__version__ if hasattr(yf, '__version__') else 'unknown',
+            'test_ticker': 'AAPL',
+            'info_available': bool(info and len(info) > 0),
+            'info_keys_count': len(info) if info else 0,
+            'has_name': 'shortName' in info if info else False,
+            'has_price': 'currentPrice' in info if info else False,
+            'sample_keys': list(info.keys())[:5] if info else []
         })
     except Exception as e:
-        print(f"yfinance test failed: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({
             'status': 'error',
-            'yfinance_working': False,
-            'error': str(e),
-            'traceback': traceback.format_exc()
+            'yfinance_version': 'unknown',
+            'error': str(e)
         })
 
 @app.route('/validate_ticker/<ticker>')
@@ -1307,89 +1261,30 @@ def validate_ticker(ticker):
     """Validate if a ticker symbol exists in Yahoo Finance"""
     try:
         import yfinance as yf
-        import requests
-        import time
         
-        ticker_upper = ticker.upper().strip()
-        print(f"Validating ticker: {ticker_upper}")
+        # Try to fetch basic info for the ticker
+        stock = yf.Ticker(ticker.upper())
+        info = stock.info
         
-        # Add user agent to avoid blocking
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        
-        # First try a simple request to see if the ticker exists
-        try:
-            stock = yf.Ticker(ticker_upper)
-            
-            # Try to get basic info with timeout and retries
-            info = None
-            for attempt in range(3):
-                try:
-                    print(f"Attempt {attempt + 1} to get info for {ticker_upper}")
-                    info = stock.info
-                    if info:
-                        print(f"Got info for {ticker_upper}: {len(info)} keys")
-                        break
-                    time.sleep(1)  # Wait 1 second between attempts
-                except Exception as e:
-                    print(f"Attempt {attempt + 1} failed: {str(e)}")
-                    if attempt < 2:  # Don't sleep on last attempt
-                        time.sleep(1)
-            
-            # More robust validation - check for multiple indicators
-            if info and isinstance(info, dict) and len(info) > 0:
-                print(f"Info keys for {ticker_upper}: {list(info.keys())[:10]}...")
-                
-                # Check for essential fields that indicate a valid stock
-                has_name = any(key in info for key in ['shortName', 'longName', 'symbol'])
-                has_price = any(key in info for key in ['currentPrice', 'regularMarketPrice', 'previousClose'])
-                has_market_cap = 'marketCap' in info
-                
-                print(f"Validation for {ticker_upper}: has_name={has_name}, has_price={has_price}, has_market_cap={has_market_cap}")
-                
-                # If we have at least a name and some price data, it's likely valid
-                if has_name and (has_price or has_market_cap):
-                    return jsonify({
-                        'valid': True,
-                        'ticker': ticker_upper,
-                        'name': info.get('shortName', info.get('longName', ticker_upper)),
-                        'exchange': info.get('exchange', 'Unknown')
-                    })
-            
-            # If info is empty or doesn't have the right fields, try alternative method
-            # Try to get historical data for the last day
-            try:
-                print(f"Trying historical data for {ticker_upper}")
-                hist = stock.history(period="1d", timeout=10)
-                if not hist.empty and len(hist) > 0:
-                    print(f"Got historical data for {ticker_upper}: {len(hist)} rows")
-                    return jsonify({
-                        'valid': True,
-                        'ticker': ticker_upper,
-                        'name': ticker_upper,
-                        'exchange': 'Unknown'
-                    })
-                else:
-                    print(f"No historical data for {ticker_upper}")
-            except Exception as e:
-                print(f"Historical data failed for {ticker_upper}: {str(e)}")
-                
-        except Exception as e:
-            print(f"Error fetching data for {ticker_upper}: {str(e)}")
+        # Check if we got valid data (not empty dict)
+        if info and len(info) > 1:  # More than just basic metadata
+            # Check if it has essential fields that indicate a valid stock
+            if 'symbol' in info or 'shortName' in info or 'longName' in info:
+                return jsonify({
+                    'valid': True,
+                    'ticker': ticker.upper(),
+                    'name': info.get('shortName', info.get('longName', ticker.upper())),
+                    'exchange': info.get('exchange', 'Unknown')
+                })
         
         # If we get here, the ticker is not valid
-        print(f"Ticker {ticker_upper} validation failed")
         return jsonify({
             'valid': False,
-            'ticker': ticker_upper,
+            'ticker': ticker.upper(),
             'error': 'Ticker not found in Yahoo Finance database'
         })
         
     except Exception as e:
-        print(f"General error validating ticker {ticker}: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({
             'valid': False,
             'ticker': ticker.upper(),
@@ -1726,16 +1621,6 @@ def get_current_plot(plot_type):
         }), 500
 
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get('PORT', 10000))
+    port = int(os.environ.get('PORT', 5002))
     debug = os.environ.get('FLASK_ENV') == 'development'
-    
-    print(f"Starting Flask app on port {port}")
-    print(f"Debug mode: {debug}")
-    print(f"Environment: {os.environ.get('FLASK_ENV', 'production')}")
-    
-    try:
-        app.run(debug=debug, host='0.0.0.0', port=port)
-    except Exception as e:
-        print(f"Error starting Flask app: {e}")
-        raise
+    app.run(debug=debug, host='0.0.0.0', port=port)

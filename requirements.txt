@@ -1,28 +1,18 @@
-# Core Flask dependencies
 Flask==2.3.3
-Werkzeug==2.3.7
-
-# Data processing (use latest compatible versions)
-pandas>=2.2.0
-numpy>=1.26.0
-python-dateutil>=2.8.2
-
-# Financial data
-yfinance==0.2.28
-
-# Visualization
-plotly>=5.17.0
-matplotlib>=3.8.0
-
-# HTTP requests
-requests>=2.31.0
-urllib3>=1.26.0
-certifi>=2023.7.22
-
-# Environment management
+streamlit>=1.28.0
+python-dateutil==2.8.2
+yfinance==0.2.66
+pandas>=2.1.1
+plotly>=5.15.0
+numpy>=1.24.3
+matplotlib==3.7.2
+datetime
+requests>=2.25.0
 python-dotenv>=1.0.0
-
-# Additional dependencies for compatibility
-setuptools>=65.0.0
-wheel>=0.40.0
-gunicorn>=21.2.0
+lxml>=4.9.0
+beautifulsoup4>=4.11.0
+html5lib>=1.1
+multitasking>=0.0.9
+frozendict>=2.3.0
+peewee>=3.15.0
+appdirs>=1.4.4
