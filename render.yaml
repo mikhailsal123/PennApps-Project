@@ -1,17 +1,13 @@
 services:
   - type: web
     name: tradesphere-backend
-    env: docker
-    dockerfilePath: ./Dockerfile
+    env: python
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: python3 app.py
     envVars:
       - key: FLASK_ENV
         value: production
       - key: PORT
         value: 10000
-    # Enable build caching
-    buildFilter:
-      paths:
-        - "requirements.txt"
-        - "*.py"
-        - "templates/**"
-        - "static/**"
