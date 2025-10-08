@@ -1229,6 +1229,16 @@ def index():
     """Main page"""
     return render_template('index.html')
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for deployment monitoring"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'TradeSphere Backend',
+        'version': '1.0.0',
+        'timestamp': datetime.now().isoformat()
+    })
+
 @app.route('/test_yfinance')
 def test_yfinance():
     """Test endpoint to check if yfinance is working"""
@@ -1648,6 +1658,16 @@ def get_current_plot(plot_type):
         }), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5002))
+    import os
+    port = int(os.environ.get('PORT', 10000))
     debug = os.environ.get('FLASK_ENV') == 'development'
-    app.run(debug=debug, host='0.0.0.0', port=port)
+    
+    print(f"Starting Flask app on port {port}")
+    print(f"Debug mode: {debug}")
+    print(f"Environment: {os.environ.get('FLASK_ENV', 'production')}")
+    
+    try:
+        app.run(debug=debug, host='0.0.0.0', port=port)
+    except Exception as e:
+        print(f"Error starting Flask app: {e}")
+        raise
