@@ -1229,35 +1229,89 @@ def index():
     """Main page"""
     return render_template('index.html')
 
+@app.route('/test_yfinance')
+def test_yfinance():
+    """Test endpoint to check if yfinance is working"""
+    try:
+        import yfinance as yf
+        
+        # Test with a known good ticker
+        stock = yf.Ticker("AAPL")
+        info = stock.info
+        
+        return jsonify({
+            'status': 'success',
+            'yfinance_working': True,
+            'test_ticker': 'AAPL',
+            'info_keys': list(info.keys()) if info else [],
+            'has_name': 'shortName' in info if info else False,
+            'has_price': 'currentPrice' in info if info else False
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'yfinance_working': False,
+            'error': str(e)
+        })
+
 @app.route('/validate_ticker/<ticker>')
 def validate_ticker(ticker):
     """Validate if a ticker symbol exists in Yahoo Finance"""
     try:
         import yfinance as yf
+        import requests
         
-        # Try to fetch basic info for the ticker
-        stock = yf.Ticker(ticker.upper())
-        info = stock.info
+        ticker_upper = ticker.upper().strip()
         
-        # Check if we got valid data (not empty dict)
-        if info and len(info) > 1:  # More than just basic metadata
-            # Check if it has essential fields that indicate a valid stock
-            if 'symbol' in info or 'shortName' in info or 'longName' in info:
-                return jsonify({
-                    'valid': True,
-                    'ticker': ticker.upper(),
-                    'name': info.get('shortName', info.get('longName', ticker.upper())),
-                    'exchange': info.get('exchange', 'Unknown')
-                })
+        # First try a simple request to see if the ticker exists
+        try:
+            stock = yf.Ticker(ticker_upper)
+            
+            # Try to get basic info with timeout
+            info = stock.info
+            
+            # More robust validation - check for multiple indicators
+            if info and isinstance(info, dict):
+                # Check for essential fields that indicate a valid stock
+                has_name = any(key in info for key in ['shortName', 'longName', 'symbol'])
+                has_price = any(key in info for key in ['currentPrice', 'regularMarketPrice', 'previousClose'])
+                has_market_cap = 'marketCap' in info
+                
+                # If we have at least a name and some price data, it's likely valid
+                if has_name and (has_price or has_market_cap):
+                    return jsonify({
+                        'valid': True,
+                        'ticker': ticker_upper,
+                        'name': info.get('shortName', info.get('longName', ticker_upper)),
+                        'exchange': info.get('exchange', 'Unknown')
+                    })
+            
+            # If info is empty or doesn't have the right fields, try alternative method
+            # Try to get historical data for the last day
+            try:
+                hist = stock.history(period="1d")
+                if not hist.empty and len(hist) > 0:
+                    return jsonify({
+                        'valid': True,
+                        'ticker': ticker_upper,
+                        'name': ticker_upper,
+                        'exchange': 'Unknown'
+                    })
+            except:
+                pass
+                
+        except Exception as e:
+            print(f"Error fetching data for {ticker_upper}: {str(e)}")
         
         # If we get here, the ticker is not valid
         return jsonify({
             'valid': False,
-            'ticker': ticker.upper(),
+            'ticker': ticker_upper,
             'error': 'Ticker not found in Yahoo Finance database'
         })
         
     except Exception as e:
+        print(f"General error validating ticker {ticker}: {str(e)}")
         return jsonify({
             'valid': False,
             'ticker': ticker.upper(),
