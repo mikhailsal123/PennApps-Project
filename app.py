@@ -10,6 +10,7 @@ import uuid
 import os
 import requests
 from dotenv import load_dotenv
+from data_provider import get_provider
 import base64
 import io
 import matplotlib
@@ -1258,32 +1259,17 @@ def test_yfinance():
 
 @app.route('/validate_ticker/<ticker>')
 def validate_ticker(ticker):
-    """Validate if a ticker symbol exists in Yahoo Finance"""
+    """Validate if a ticker symbol exists using the configured data provider"""
     try:
-        import yfinance as yf
-        
-        # Try to fetch basic info for the ticker
-        stock = yf.Ticker(ticker.upper())
-        info = stock.info
-        
-        # Check if we got valid data (not empty dict)
-        if info and len(info) > 1:  # More than just basic metadata
-            # Check if it has essential fields that indicate a valid stock
-            if 'symbol' in info or 'shortName' in info or 'longName' in info:
-                return jsonify({
-                    'valid': True,
-                    'ticker': ticker.upper(),
-                    'name': info.get('shortName', info.get('longName', ticker.upper())),
-                    'exchange': info.get('exchange', 'Unknown')
-                })
-        
-        # If we get here, the ticker is not valid
+        provider = get_provider()
+        result = provider.validate_ticker(ticker)
+        if result.get('valid'):
+            return jsonify(result)
         return jsonify({
             'valid': False,
-            'ticker': ticker.upper(),
-            'error': 'Ticker not found in Yahoo Finance database'
+            'ticker': result.get('ticker', ticker.upper()),
+            'error': 'Ticker not found in provider database'
         })
-        
     except Exception as e:
         return jsonify({
             'valid': False,

@@ -1,6 +1,6 @@
-import yfinance as yf
 from datetime import datetime, timedelta
 import pandas as pd
+from data_provider import get_provider
 
 '''Code for the data struture storing stock time series and analysis functions'''
 
@@ -40,13 +40,15 @@ class StockData:
             print("Error: End date is the same as start date")
     
         print(f"DEBUG: Fetching {interval} data for {stock_symbol} from {start_date} to {end_date}")
-        stock = yf.Ticker(stock_symbol)
-        self.stock_data = stock.history(start=start_date, end=end_date, interval=interval)
+        provider = get_provider()
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+        self.stock_data = provider.get_history(stock_symbol, start=start_dt, end=end_dt, interval=interval)
         
         # If no data for intraday interval, try daily data as fallback
         if self.stock_data.empty and interval in ['60m', '30m', '15m', '5m', '1m']:
             print(f"DEBUG: No {interval} data available, trying daily data as fallback")
-            self.stock_data = stock.history(start=start_date, end=end_date, interval='1d')
+            self.stock_data = provider.get_history(stock_symbol, start=start_dt, end=end_dt, interval='1d')
             if not self.stock_data.empty:
                 print(f"DEBUG: Got {len(self.stock_data)} daily data points as fallback for {stock_symbol}")
         
@@ -68,10 +70,10 @@ class StockData:
         Returns:
             pandas.DataFrame: Stock data for the specific date"""
 
-        stock = yf.Ticker(stock_symbol)
+        provider = get_provider()
         date_obj = datetime.strptime(date, '%Y-%m-%d')
         new_date = date_obj + timedelta(days=1)
-        self.stock_data = stock.history(start = date, end = new_date.strftime('%Y-%m-%d'))
+        self.stock_data = provider.get_history(stock_symbol, start=date_obj, end=new_date)
         
         if self.stock_data.empty:
             self.stock_error_message(stock_symbol, date)
@@ -95,8 +97,8 @@ class StockData:
         elif int(period[0:-1]) > 8 and interval == "1m":
             return "Error: Period cannot be greater than 8 days for 1-minute intervals"
     
-        stock = yf.Ticker(stock_symbol)
-        self.stock_data = stock.history(period=period, interval=interval)
+        provider = get_provider()
+        self.stock_data = provider.get_history(stock_symbol, period=period, interval=interval)
         
         if self.stock_data.empty:
             self.stock_error_message(stock_symbol, period)
