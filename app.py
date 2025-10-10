@@ -1259,16 +1259,44 @@ def test_yfinance():
 
 @app.route('/validate_ticker/<ticker>')
 def validate_ticker(ticker):
-    """Validate if a ticker symbol exists using the configured data provider"""
+    """Validate if a ticker symbol exists using yfinance"""
     try:
-        provider = get_provider()
-        result = provider.validate_ticker(ticker)
-        if result.get('valid'):
-            return jsonify(result)
+        import yfinance as yf
+        ticker_upper = ticker.upper().strip()
+        yf_ticker = yf.Ticker(ticker_upper)
+        
+        # Try to get basic info first
+        try:
+            info = yf_ticker.info
+            if info and 'symbol' in info and info['symbol']:
+                return jsonify({
+                    'valid': True,
+                    'ticker': ticker_upper,
+                    'name': info.get('longName', info.get('shortName', ticker_upper)),
+                    'exchange': info.get('exchange', 'Unknown'),
+                    'source': 'yfinance'
+                })
+        except Exception:
+            pass
+        
+        # Fallback: check if we can get historical data
+        try:
+            hist = yf_ticker.history(period="1d")
+            if hist is not None and not hist.empty:
+                return jsonify({
+                    'valid': True,
+                    'ticker': ticker_upper,
+                    'name': ticker_upper,
+                    'exchange': 'Unknown',
+                    'source': 'yfinance_history'
+                })
+        except Exception:
+            pass
+            
         return jsonify({
             'valid': False,
-            'ticker': result.get('ticker', ticker.upper()),
-            'error': 'Ticker not found in provider database'
+            'ticker': ticker_upper,
+            'error': 'Ticker not found in Yahoo Finance database'
         })
     except Exception as e:
         return jsonify({
