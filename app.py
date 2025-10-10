@@ -10,12 +10,28 @@ import uuid
 import os
 import requests
 from dotenv import load_dotenv
-from data_provider import get_provider
 import base64
 import io
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
+
+# Configure yfinance with proper headers to avoid IP blocking
+import yfinance as yf
+
+# Set up a session with proper browser headers
+session = requests.Session()
+session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+})
+
+# Configure yfinance to use our session
+yf.set_tz_cache_location("/tmp/yfinance_cache")
 
 # Load environment variables
 load_dotenv()
@@ -1230,74 +1246,33 @@ def index():
     """Main page"""
     return render_template('index.html')
 
-@app.route('/test_yfinance')
-def test_yfinance():
-    """Test endpoint to check yfinance version and functionality"""
-    try:
-        import yfinance as yf
-        
-        # Test with a known good ticker
-        stock = yf.Ticker("AAPL")
-        info = stock.info
-        
-        return jsonify({
-            'status': 'success',
-            'yfinance_version': yf.__version__ if hasattr(yf, '__version__') else 'unknown',
-            'test_ticker': 'AAPL',
-            'info_available': bool(info and len(info) > 0),
-            'info_keys_count': len(info) if info else 0,
-            'has_name': 'shortName' in info if info else False,
-            'has_price': 'currentPrice' in info if info else False,
-            'sample_keys': list(info.keys())[:5] if info else []
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'yfinance_version': 'unknown',
-            'error': str(e)
-        })
-
 @app.route('/validate_ticker/<ticker>')
 def validate_ticker(ticker):
-    """Validate if a ticker symbol exists using yfinance"""
+    """Validate if a ticker symbol exists in Yahoo Finance"""
     try:
-        import yfinance as yf
-        ticker_upper = ticker.upper().strip()
-        yf_ticker = yf.Ticker(ticker_upper)
+        # Try to fetch basic info for the ticker using configured session
+        stock = yf.Ticker(ticker.upper(), session=session)
+        info = stock.info
         
-        # Try to get basic info first
-        try:
-            info = yf_ticker.info
-            if info and 'symbol' in info and info['symbol']:
+        # Check if we got valid data (not empty dict)
+        if info and len(info) > 1:  # More than just basic metadata
+            # Check if it has essential fields that indicate a valid stock
+            if 'symbol' in info or 'shortName' in info or 'longName' in info:
                 return jsonify({
                     'valid': True,
-                    'ticker': ticker_upper,
-                    'name': info.get('longName', info.get('shortName', ticker_upper)),
+                    'ticker': ticker.upper(),
+                    'name': info.get('shortName', info.get('longName', ticker.upper())),
                     'exchange': info.get('exchange', 'Unknown'),
-                    'source': 'yfinance'
+                    'source': 'yfinance_with_headers'
                 })
-        except Exception:
-            pass
         
-        # Fallback: check if we can get historical data
-        try:
-            hist = yf_ticker.history(period="1d")
-            if hist is not None and not hist.empty:
-                return jsonify({
-                    'valid': True,
-                    'ticker': ticker_upper,
-                    'name': ticker_upper,
-                    'exchange': 'Unknown',
-                    'source': 'yfinance_history'
-                })
-        except Exception:
-            pass
-            
+        # If we get here, the ticker is not valid
         return jsonify({
             'valid': False,
-            'ticker': ticker_upper,
+            'ticker': ticker.upper(),
             'error': 'Ticker not found in Yahoo Finance database'
         })
+        
     except Exception as e:
         return jsonify({
             'valid': False,

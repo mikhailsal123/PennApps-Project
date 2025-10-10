@@ -1,6 +1,45 @@
 from datetime import datetime, timedelta
 import pandas as pd
-from data_provider import get_provider
+import yfinance as yf
+import requests
+
+# Set up a session with proper browser headers to avoid IP blocking
+session = requests.Session()
+session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+})
+
+def get_stock_data_with_retry(ticker_symbol, start_date=None, end_date=None, interval='1d', max_retries=3):
+    """Get stock data with retry logic and delays to avoid rate limiting"""
+    import time
+    import random
+    
+    for attempt in range(max_retries):
+        try:
+            stock = yf.Ticker(ticker_symbol, session=session)
+            if start_date and end_date:
+                data = stock.history(start=start_date, end=end_date, interval=interval)
+            else:
+                data = stock.history(period="1d", interval=interval)
+            
+            if not data.empty:
+                return data
+                
+        except Exception as e:
+            print(f"DEBUG: Attempt {attempt + 1} failed for {ticker_symbol}: {str(e)}")
+            if attempt < max_retries - 1:
+                delay = random.uniform(1, 3)  # Random delay between 1-3 seconds
+                print(f"DEBUG: Waiting {delay:.1f} seconds before retry...")
+                time.sleep(delay)
+            else:
+                raise e
+    
+    return pd.DataFrame()  # Return empty DataFrame if all retries fail
 
 '''Code for the data struture storing stock time series and analysis functions'''
 
@@ -40,15 +79,12 @@ class StockData:
             print("Error: End date is the same as start date")
     
         print(f"DEBUG: Fetching {interval} data for {stock_symbol} from {start_date} to {end_date}")
-        provider = get_provider()
-        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-        self.stock_data = provider.get_history(stock_symbol, start=start_dt, end=end_dt, interval=interval)
+        self.stock_data = get_stock_data_with_retry(stock_symbol, start_date, end_date, interval)
         
         # If no data for intraday interval, try daily data as fallback
         if self.stock_data.empty and interval in ['60m', '30m', '15m', '5m', '1m']:
             print(f"DEBUG: No {interval} data available, trying daily data as fallback")
-            self.stock_data = provider.get_history(stock_symbol, start=start_dt, end=end_dt, interval='1d')
+            self.stock_data = get_stock_data_with_retry(stock_symbol, start_date, end_date, '1d')
             if not self.stock_data.empty:
                 print(f"DEBUG: Got {len(self.stock_data)} daily data points as fallback for {stock_symbol}")
         
@@ -70,10 +106,10 @@ class StockData:
         Returns:
             pandas.DataFrame: Stock data for the specific date"""
 
-        provider = get_provider()
+        stock = yf.Ticker(stock_symbol, session=session)
         date_obj = datetime.strptime(date, '%Y-%m-%d')
         new_date = date_obj + timedelta(days=1)
-        self.stock_data = provider.get_history(stock_symbol, start=date_obj, end=new_date)
+        self.stock_data = stock.history(start=date, end=new_date.strftime('%Y-%m-%d'))
         
         if self.stock_data.empty:
             self.stock_error_message(stock_symbol, date)
@@ -97,8 +133,8 @@ class StockData:
         elif int(period[0:-1]) > 8 and interval == "1m":
             return "Error: Period cannot be greater than 8 days for 1-minute intervals"
     
-        provider = get_provider()
-        self.stock_data = provider.get_history(stock_symbol, period=period, interval=interval)
+        stock = yf.Ticker(stock_symbol, session=session)
+        self.stock_data = stock.history(period=period, interval=interval)
         
         if self.stock_data.empty:
             self.stock_error_message(stock_symbol, period)
